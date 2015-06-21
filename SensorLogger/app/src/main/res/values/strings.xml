@@ -1,0 +1,16 @@
+<resources>
+    <string name="app_name">Sensor Logger</string>
+
+    <string name="action_settings">Settings</string>
+    <string name="toggleLbl">Logging</string>
+    <string name="logLbl">Debugging Log:</string>
+    <string-array name="logging_contexts">
+        <item>Side Pocket</item>
+        <item>Back Pocket</item>
+        <item>Handbag</item>
+        <item>Side Jacket Pocket</item>
+        <item>Inside Jacket Pocket</item>
+        <item>In Hand</item>
+    </string-array>
+
+</resources>
