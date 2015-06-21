@@ -68,7 +68,7 @@ public class SensorLoggerService extends Service {
         @Override
         protected Void doInBackground(SensorEvent... events) {
             SensorEvent event = events[0];
-            long t = event.timestamp;
+            long t = System.currentTimeMillis();
 
             Sensor sensor = event.sensor;
             if (sensor.getType() == Sensor.TYPE_ACCELEROMETER) {
@@ -132,20 +132,3 @@ public class SensorLoggerService extends Service {
 
 
 }
-
-
-
-
-/*        new Thread(new Runnable() {
-            public void run() {
-                for (int i=0; i<100; i++) {
-                    ToneGenerator toneG = new ToneGenerator(AudioManager.STREAM_ALARM, 100);
-                    toneG.startTone(ToneGenerator.TONE_CDMA_ALERT_CALL_GUARD, 10);
-                    try {
-                        Thread.sleep(4000);
-                    } catch (InterruptedException e) {
-                        e.printStackTrace();
-                    }
-                }
-            }
-        }).start();*/
