@@ -1,9 +1,7 @@
 package de.unibonn.mss15.sensorlogger;
 
 import android.util.Log;
-
 import com.google.gson.Gson;
-
 import java.util.Vector;
 
 
@@ -12,9 +10,10 @@ import java.util.Vector;
  */
 
 public class Storage {
-    public transient String Position = "";
-    public Vector<Entry> Entries = new Vector<Entry>();
+    private transient String Position = "";
+    private Vector<Entry> Entries = new Vector<Entry>();
 
+    // Append an entry
     public void AddEntry(long t, String n, int axes, float... values){
         try{
             Entries.add(new Entry(Position,t,n,axes,values));
@@ -23,6 +22,15 @@ public class Storage {
             Log.v("Exception", ex.getMessage());
         }
     }
+
+    // Append a set of entries
+    public void Append(Storage s){
+        Entries.addAll(s.Entries);
+    }
+
+    public void SetPosition(String p){ Position = p; }
+    public void Flush(){ Entries.clear(); }
+    public int Size(){ return Entries.size(); }
 
     // Empty constructor
     public Storage(){}

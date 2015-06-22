@@ -6,50 +6,33 @@ import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
 import android.content.ServiceConnection;
-import android.graphics.Color;
-import android.net.ConnectivityManager;
-import android.net.NetworkInfo;
 import android.os.AsyncTask;
 import android.os.Bundle;
 import android.os.IBinder;
-import android.os.Messenger;
-import android.text.method.ScrollingMovementMethod;
 import android.util.Log;
-import android.view.Menu;
-import android.view.MenuItem;
 import android.view.View;
 import android.widget.ArrayAdapter;
 import android.widget.Button;
 import android.widget.ScrollView;
 import android.widget.Spinner;
-import android.widget.Switch;
 import android.widget.TextView;
 import android.widget.Toast;
 import android.widget.ToggleButton;
-import org.apache.http.HttpEntity;
 import org.apache.http.HttpResponse;
-import org.apache.http.NameValuePair;
-import org.apache.http.client.ClientProtocolException;
-import org.apache.http.client.entity.UrlEncodedFormEntity;
-import org.apache.http.client.methods.HttpGet;
 import org.apache.http.client.methods.HttpPost;
 import org.apache.http.entity.StringEntity;
 import org.apache.http.impl.client.DefaultHttpClient;
-import org.apache.http.message.BasicNameValuePair;
-import org.apache.http.protocol.HTTP;
-import org.apache.http.util.EntityUtils;
-import java.io.IOException;
-import java.io.UnsupportedEncodingException;
-import java.text.ParseException;
-import java.util.Timer;
-
 
 public class MainActivity extends Activity {
+    private final String SERVER_ADDR = "http://46.101.133.187:8529/sensors-data-collector/save";
+
     // UI objects
     private TextView logTxt;
     private ScrollView logScroll;
     private Spinner spinner;
     private ProgressDialog pDialog;
+    private TextView syncPendingTxt;
+    private Button syncBtn;
 
     // Service objects
     SensorLoggerService mService;
@@ -58,14 +41,16 @@ public class MainActivity extends Activity {
     // Storage
     private Storage storage;
 
-
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
+        // UI objects
         logTxt = (TextView) findViewById(R.id.logTxt);
         logScroll = (ScrollView) findViewById(R.id.logScroll);
+        syncPendingTxt = (TextView) findViewById(R.id.syncPendingTxt);
+        syncBtn = (Button) findViewById(R.id.syncBtn);
         // Spinner !
         spinner = (Spinner) findViewById(R.id.logcontextSpinner);
         ArrayAdapter<CharSequence> adapter = ArrayAdapter.createFromResource(this, R.array.logging_contexts, android.R.layout.simple_spinner_item);
@@ -110,6 +95,7 @@ public class MainActivity extends Activity {
     public void startLoggerTglOnClick(View v) {
         boolean on = ((ToggleButton) v).isChecked();
         if (on) {
+            spinner.setEnabled(false);
             // Start service
             startLoggerService();
             log("Service started.");
@@ -117,6 +103,7 @@ public class MainActivity extends Activity {
             // Stop service
             stopLoggerService();
             log("Service stopped.");
+            spinner.setEnabled(true);
         }
     }
 
@@ -125,11 +112,11 @@ public class MainActivity extends Activity {
             Toast.makeText(this, "Logging must be turned off before sync.", Toast.LENGTH_SHORT).show();
             return;
         }
-        // Post Entries
-        String json = storage.ToJSON();
-        //log("JSON" + json);
-        Log.v("JSON", json);
-        new PostData().execute(json);
+        // Disable button as a feedback
+        //syncBtn.setEnabled(false);
+
+        // Convert to JSON and call POST thread
+        new PrepareAndPost().execute(storage);
     }
 
     public void startLoggerService(){
@@ -141,9 +128,11 @@ public class MainActivity extends Activity {
     public void stopLoggerService(){
         // Unbind from the service
         if (mBound) {
-            storage = mService.stopLogging();
+            Storage newData = mService.stopLogging();
+            storage.Append(newData);
             unbindService(mConnection);
             mBound = false;
+            syncPendingTxt.setText(Integer.toString(storage.Size()));
         }
     }
 
@@ -163,50 +152,95 @@ public class MainActivity extends Activity {
         }
 
         @Override
-        public void onServiceDisconnected(ComponentName arg0) {
-            mBound = false;
-        }
+        public void onServiceDisconnected(ComponentName arg0) { mBound = false; }
     };
 
+    // Marshalls Storage to JSON string and calls POST
+    class PrepareAndPost extends AsyncTask<Storage, String, String> {
 
+        @Override
+        protected void onPreExecute() {
+            super.onPreExecute();
+            log("Marshaling to JSON ...");
+            // Showing progress dialog
+            pDialog = new ProgressDialog(MainActivity.this);
+            pDialog.setMessage("Please wait ...");
+            pDialog.setCancelable(false);
+            pDialog.show();
+        }
+
+        @Override
+        protected String doInBackground(Storage... s) {
+            // Convert storage to json
+            return s[0].ToJSON();
+        }
+
+        @Override
+        protected void onPostExecute(String json) {
+            super.onPostExecute(json);
+            Log.v("JSON", json);
+
+            // Dismiss the progress dialog
+            if (pDialog.isShowing())
+                pDialog.dismiss();
+
+            // Post Entries
+            new PostData().execute(json);
+        }
+    }
+
+    // HTTP POST
     class PostData extends AsyncTask<String, String, String> {
 
         @Override
         protected void onPreExecute() {
             super.onPreExecute();
+            log("Uploading " + storage.Size() + " entries ...");
             // Showing progress dialog
             pDialog = new ProgressDialog(MainActivity.this);
-            pDialog.setMessage("Please wait...");
+            pDialog.setMessage("Uploading " + storage.Size() + " entries");
             pDialog.setCancelable(false);
             pDialog.show();
         }
 
-        //private Exception exception;
-        private String responseStatusLine = "";
-
+        @Override
         protected String doInBackground(String... bodies) {
+            String responseStatusLine = "";
             try {
                 DefaultHttpClient httpclient = new DefaultHttpClient();
-                HttpPost httppostreq = new HttpPost("http://46.101.133.187:8529/sensors-data-collector/save");
+                HttpPost httppostreq = new HttpPost(SERVER_ADDR);
                 StringEntity se = new StringEntity(bodies[0]);
                 httppostreq.setEntity(se);
                 HttpResponse httpresponse = httpclient.execute(httppostreq);
                 responseStatusLine = httpresponse.getStatusLine().toString();
+                if(httpresponse.getStatusLine().getStatusCode()==200)
+                    return Integer.toString(httpresponse.getStatusLine().getStatusCode());
             } catch (Exception e) {
                 return e.getMessage();
             }
             return responseStatusLine;
         }
 
+        @Override
         protected void onPostExecute(String response) {
             super.onPostExecute(response);
             final String res = response;
+            Log.v("HTTP", res);
+
+            // Enable Sync button
+            //syncBtn.setEnabled(true);
 
             // Dismiss the progress dialog
             if (pDialog.isShowing())
                 pDialog.dismiss();
 
-            Log.v("HTTP", res);
+            if(res.equals("200")) {
+                storage.Flush();
+                log("OK! Flushed storage.");
+                syncPendingTxt.setText(Integer.toString(storage.Size()));
+                return;
+            }
+
             log(res);
             runOnUiThread(new Runnable() {
                 public void run() {

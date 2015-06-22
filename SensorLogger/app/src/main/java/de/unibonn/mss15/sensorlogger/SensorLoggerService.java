@@ -1,6 +1,5 @@
 package de.unibonn.mss15.sensorlogger;
 
-
 import android.app.Service;
 import android.content.Intent;
 import android.hardware.Sensor;
@@ -13,7 +12,9 @@ import android.os.IBinder;
 import android.util.Log;
 import android.widget.Toast;
 
-import java.util.Random;
+/**
+ * Service to collect sensor data and return on stop
+ */
 
 public class SensorLoggerService extends Service {
     // Binder given to client
@@ -111,7 +112,7 @@ public class SensorLoggerService extends Service {
     // Register to sensors
     public void startLogging(String phonePos) {
         // Store the spinner's value
-        storage.Position = phonePos;
+        storage.SetPosition(phonePos);
 
         Toast.makeText(this, "Sampling every "+ Integer.toString(samplingPeriod/1000)+"ms", Toast.LENGTH_SHORT).show();
         Log.v("Sampling period", Integer.toString(samplingPeriod/1000)+"ms");
