@@ -26,9 +26,7 @@ public class SensorLoggerService extends Service {
 
     // Sensor storage
     private Storage storage = new Storage();
-    private int samplingHz = 2;
-    private int samplingPeriod = (1000/samplingHz)*1000; // micro seconds
-
+    private int samplingRate; // micro seconds
     /**
      * Class used for the client Binder.  Because we know this service always
      * runs in the same process as its clients, we don't need to deal with IPC.
@@ -42,6 +40,9 @@ public class SensorLoggerService extends Service {
 
     @Override
     public IBinder onBind(Intent intent) {
+        // Get sampling rate from Activity
+        samplingRate = intent.getIntExtra("SamplingRate", 500)*1000;
+
         sensorManager = (SensorManager) getSystemService(SENSOR_SERVICE);
         sensorListener = new SensorEventListener() {
             @Override
@@ -76,29 +77,29 @@ public class SensorLoggerService extends Service {
                 float x = event.values[0];
                 float y = event.values[1];
                 float z = event.values[2];
-                Log.v("Acc:", Float.toString(x) + "," + Float.toString(y) + "," + Float.toString(z));
+                Log.d("Acc:", Float.toString(x) + "," + Float.toString(y) + "," + Float.toString(z));
                 storage.AddEntry(t, "acc", 3, event.values);
 
             } else if (sensor.getType() == Sensor.TYPE_GYROSCOPE) {
                 float x = event.values[0];
                 float y = event.values[1];
                 float z = event.values[2];
-                Log.v("Gyro:", Float.toString(x) + "," + Float.toString(y) + "," + Float.toString(z));
+                Log.d("Gyro:", Float.toString(x) + "," + Float.toString(y) + "," + Float.toString(z));
                 storage.AddEntry(t,"gyro",3,event.values);
 
             } else if (sensor.getType() == Sensor.TYPE_PRESSURE) {
                 float v = event.values[0];
-                Log.v("Baro", Float.toString(v));
+                Log.d("Baro", Float.toString(v));
 
                 storage.AddEntry(t,"baro",1,event.values);
             } else if (sensor.getType() == Sensor.TYPE_LIGHT) {
                 float v = event.values[0];
-                Log.v("Light", Float.toString(v));
+                Log.d("Light", Float.toString(v));
                 storage.AddEntry(t,"light",1,event.values);
 
             } else if (sensor.getType() == Sensor.TYPE_PROXIMITY) {
                 float v = event.values[0];
-                Log.v("Proximity", Float.toString(v));
+                Log.d("Proximity", Float.toString(v));
                 storage.AddEntry(t,"proxi",1,event.values);
 
             }
@@ -114,15 +115,15 @@ public class SensorLoggerService extends Service {
         // Store the spinner's value
         storage.SetPosition(phonePos);
 
-        Toast.makeText(this, "Sampling every "+ Integer.toString(samplingPeriod/1000)+"ms", Toast.LENGTH_SHORT).show();
-        Log.v("Sampling period", Integer.toString(samplingPeriod/1000)+"ms");
+        Toast.makeText(this, "Sampling every "+ Integer.toString(samplingRate/1000)+"ms", Toast.LENGTH_SHORT).show();
+        Log.v("Sampling period", Integer.toString(samplingRate/1000)+"ms");
 
         // SensorManager.SENSOR_DELAY_GAME
-        sensorManager.registerListener(sensorListener, sensorManager.getDefaultSensor(Sensor.TYPE_ACCELEROMETER), samplingPeriod, samplingPeriod);
-        sensorManager.registerListener(sensorListener, sensorManager.getDefaultSensor(Sensor.TYPE_GYROSCOPE), samplingPeriod, samplingPeriod);
-        sensorManager.registerListener(sensorListener, sensorManager.getDefaultSensor(Sensor.TYPE_PRESSURE), samplingPeriod, samplingPeriod);
-        sensorManager.registerListener(sensorListener, sensorManager.getDefaultSensor(Sensor.TYPE_LIGHT), samplingPeriod, samplingPeriod);
-        sensorManager.registerListener(sensorListener, sensorManager.getDefaultSensor(Sensor.TYPE_PROXIMITY), samplingPeriod, samplingPeriod);
+        sensorManager.registerListener(sensorListener, sensorManager.getDefaultSensor(Sensor.TYPE_ACCELEROMETER), samplingRate, samplingRate);
+        sensorManager.registerListener(sensorListener, sensorManager.getDefaultSensor(Sensor.TYPE_GYROSCOPE), samplingRate, samplingRate);
+        sensorManager.registerListener(sensorListener, sensorManager.getDefaultSensor(Sensor.TYPE_PRESSURE), samplingRate, samplingRate);
+        sensorManager.registerListener(sensorListener, sensorManager.getDefaultSensor(Sensor.TYPE_LIGHT), samplingRate, samplingRate);
+        sensorManager.registerListener(sensorListener, sensorManager.getDefaultSensor(Sensor.TYPE_PROXIMITY), samplingRate, samplingRate);
     }
 
     // Unregister from sensors and return data

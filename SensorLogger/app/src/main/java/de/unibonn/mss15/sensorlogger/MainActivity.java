@@ -9,10 +9,13 @@ import android.content.ServiceConnection;
 import android.os.AsyncTask;
 import android.os.Bundle;
 import android.os.IBinder;
+import android.text.TextUtils;
 import android.util.Log;
 import android.view.View;
+import android.view.inputmethod.InputMethodManager;
 import android.widget.ArrayAdapter;
 import android.widget.Button;
+import android.widget.EditText;
 import android.widget.ScrollView;
 import android.widget.Spinner;
 import android.widget.TextView;
@@ -23,8 +26,12 @@ import org.apache.http.client.methods.HttpPost;
 import org.apache.http.entity.StringEntity;
 import org.apache.http.impl.client.DefaultHttpClient;
 
+import java.util.List;
+import java.util.Vector;
+
 public class MainActivity extends Activity {
     private final String SERVER_ADDR = "http://46.101.133.187:8529/sensors-data-collector/save";
+    private final int PROC_SLICE = 20000;
 
     // UI objects
     private TextView logTxt;
@@ -33,6 +40,7 @@ public class MainActivity extends Activity {
     private ProgressDialog pDialog;
     private TextView syncPendingTxt;
     private Button syncBtn;
+    private EditText samplingRateTxt;
 
     // Service objects
     SensorLoggerService mService;
@@ -51,6 +59,7 @@ public class MainActivity extends Activity {
         logScroll = (ScrollView) findViewById(R.id.logScroll);
         syncPendingTxt = (TextView) findViewById(R.id.syncPendingTxt);
         syncBtn = (Button) findViewById(R.id.syncBtn);
+        samplingRateTxt= (EditText) findViewById(R.id.samplingRateTxt);
         // Spinner !
         spinner = (Spinner) findViewById(R.id.logcontextSpinner);
         ArrayAdapter<CharSequence> adapter = ArrayAdapter.createFromResource(this, R.array.logging_contexts, android.R.layout.simple_spinner_item);
@@ -96,6 +105,8 @@ public class MainActivity extends Activity {
         boolean on = ((ToggleButton) v).isChecked();
         if (on) {
             spinner.setEnabled(false);
+            samplingRateTxt.setEnabled(false);
+
             // Start service
             startLoggerService();
             log("Service started.");
@@ -104,6 +115,7 @@ public class MainActivity extends Activity {
             stopLoggerService();
             log("Service stopped.");
             spinner.setEnabled(true);
+            samplingRateTxt.setEnabled(true);
         }
     }
 
@@ -122,6 +134,7 @@ public class MainActivity extends Activity {
     public void startLoggerService(){
         // Bind to service
         Intent intent = new Intent(this, SensorLoggerService.class);
+        intent.putExtra("SamplingRate", Integer.parseInt(samplingRateTxt.getText().toString()));
         bindService(intent, mConnection, Context.BIND_AUTO_CREATE);
     }
 
@@ -133,6 +146,7 @@ public class MainActivity extends Activity {
             unbindService(mConnection);
             mBound = false;
             syncPendingTxt.setText(Integer.toString(storage.Size()));
+            log("Retrieved " + Integer.toString(newData.Size()) + " entries.");
         }
     }
 
@@ -156,97 +170,74 @@ public class MainActivity extends Activity {
     };
 
     // Marshalls Storage to JSON string and calls POST
-    class PrepareAndPost extends AsyncTask<Storage, String, String> {
+    class PrepareAndPost extends AsyncTask<Storage, Integer, String> {
+        private int progressMax;
 
         @Override
         protected void onPreExecute() {
             super.onPreExecute();
-            log("Marshaling to JSON ...");
+            log("POSTing " + storage.Size() + " entries in " + PROC_SLICE + " blocks ...");
             // Showing progress dialog
             pDialog = new ProgressDialog(MainActivity.this);
             pDialog.setMessage("Please wait ...");
             pDialog.setCancelable(false);
+            //pDialog.show();
+            pDialog.setProgressStyle(ProgressDialog.STYLE_HORIZONTAL);
+            pDialog.setProgress(0);
+            progressMax = storage.Size();
+            pDialog.setMax(progressMax);
             pDialog.show();
         }
 
         @Override
         protected String doInBackground(Storage... s) {
-            // Convert storage to json
-            return s[0].ToJSON();
-        }
+            List<String> messages = new Vector<String>();
+            while(s[0].Size() != 0) {
+                publishProgress(s[0].Size());
 
-        @Override
-        protected void onPostExecute(String json) {
-            super.onPostExecute(json);
-            Log.v("JSON", json);
+                // Convert a slice of storage to json
+                String json = s[0].PopFrontJSON(PROC_SLICE);
 
-            // Dismiss the progress dialog
-            if (pDialog.isShowing())
-                pDialog.dismiss();
-
-            // Post Entries
-            new PostData().execute(json);
-        }
-    }
-
-    // HTTP POST
-    class PostData extends AsyncTask<String, String, String> {
-
-        @Override
-        protected void onPreExecute() {
-            super.onPreExecute();
-            log("Uploading " + storage.Size() + " entries ...");
-            // Showing progress dialog
-            pDialog = new ProgressDialog(MainActivity.this);
-            pDialog.setMessage("Uploading " + storage.Size() + " entries");
-            pDialog.setCancelable(false);
-            pDialog.show();
-        }
-
-        @Override
-        protected String doInBackground(String... bodies) {
-            String responseStatusLine = "";
-            try {
-                DefaultHttpClient httpclient = new DefaultHttpClient();
-                HttpPost httppostreq = new HttpPost(SERVER_ADDR);
-                StringEntity se = new StringEntity(bodies[0]);
-                httppostreq.setEntity(se);
-                HttpResponse httpresponse = httpclient.execute(httppostreq);
-                responseStatusLine = httpresponse.getStatusLine().toString();
-                if(httpresponse.getStatusLine().getStatusCode()==200)
-                    return Integer.toString(httpresponse.getStatusLine().getStatusCode());
-            } catch (Exception e) {
-                return e.getMessage();
-            }
-            return responseStatusLine;
-        }
-
-        @Override
-        protected void onPostExecute(String response) {
-            super.onPostExecute(response);
-            final String res = response;
-            Log.v("HTTP", res);
-
-            // Enable Sync button
-            //syncBtn.setEnabled(true);
-
-            // Dismiss the progress dialog
-            if (pDialog.isShowing())
-                pDialog.dismiss();
-
-            if(res.equals("200")) {
-                storage.Flush();
-                log("OK! Flushed storage.");
-                syncPendingTxt.setText(Integer.toString(storage.Size()));
-                return;
-            }
-
-            log(res);
-            runOnUiThread(new Runnable() {
-                public void run() {
-                    Toast.makeText(getApplicationContext(), res, Toast.LENGTH_SHORT).show();
+                //String responseStatusLine = "";
+                try {
+                    DefaultHttpClient httpclient = new DefaultHttpClient();
+                    HttpPost httppostreq = new HttpPost(SERVER_ADDR);
+                    StringEntity se = new StringEntity(json);
+                    httppostreq.setEntity(se);
+                    HttpResponse httpresponse = httpclient.execute(httppostreq);
+                    //responseStatusLine = httpresponse.getStatusLine().toString();
+                    if (httpresponse.getStatusLine().getStatusCode() == 200) {
+                        messages.add(httpresponse.getStatusLine().toString());
+                    }
+                    else {
+                        throw new Exception(httpresponse.getStatusLine().toString());
+                    }
+                } catch (Exception e) {
+                    storage.Recover();
+                    messages.add(e.getMessage());
+                    return TextUtils.join("\n", messages);
                 }
-            });
+            }
+            return TextUtils.join("\n", messages);
+        }
+
+        @Override
+        protected void onProgressUpdate(Integer... progress) {
+            pDialog.setProgress(progressMax-progress[0]);
+        }
+
+        @Override
+        protected void onPostExecute(String message) {
+            super.onPostExecute(message);
+            Log.v("JSON", message);
+            log(message);
+
+            // Dismiss the progress dialog
+            if (pDialog.isShowing())
+                pDialog.dismiss();
+
+            syncPendingTxt.setText(Integer.toString(storage.Size()));
+            log("Pending entries: " + Integer.toString(storage.Size()));
         }
     }
 }

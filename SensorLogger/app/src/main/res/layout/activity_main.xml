@@ -14,41 +14,89 @@
 
         <LinearLayout
             android:orientation="horizontal"
-            android:layout_width="match_parent"
+            android:layout_width="fill_parent"
             android:layout_height="wrap_content">
 
-            <TextView
-                android:layout_width="wrap_content"
+            <LinearLayout
+                android:orientation="vertical"
+                android:layout_width="fill_parent"
                 android:layout_height="fill_parent"
-                android:textAppearance="?android:attr/textAppearanceLarge"
-                android:text="@string/toggleLbl"
-                android:id="@+id/startToggleLbl"
-                android:gravity="center_vertical|right"
-                android:paddingLeft="20dp"
-                android:paddingRight="20dp" />
+                android:layout_weight="0.8"
+                android:paddingRight="10dp">
 
-            <Spinner
-                android:layout_width="0dp"
-                android:layout_height="fill_parent"
-                android:id="@+id/logcontextSpinner"
-                android:layout_weight="1" />
+                <LinearLayout
+                    android:orientation="horizontal"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content">
 
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:textAppearance="?android:attr/textAppearanceMedium"
+                        android:text="Sampling rate:"
+                        android:id="@+id/samplingRateLbl"
+                        android:gravity="center_vertical|right"
+                        android:paddingLeft="10dp"
+                        android:paddingRight="10dp"
+                        android:focusableInTouchMode="true"
+                        android:focusable="true" />
+
+                    <EditText
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:inputType="numberDecimal"
+                        android:ems="10"
+                        android:id="@+id/samplingRateTxt"
+                        android:text="500"
+                        android:layout_weight="0.5" />
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:textAppearance="?android:attr/textAppearanceMedium"
+                        android:text="ms"
+                        android:id="@+id/textView" />
+
+                </LinearLayout>
+                <LinearLayout
+                    android:orientation="horizontal"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content">
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="fill_parent"
+                        android:textAppearance="?android:attr/textAppearanceMedium"
+                        android:text="Position:"
+                        android:id="@+id/positionLbl"
+                        android:gravity="center_vertical|right"
+                        android:paddingLeft="10dp"
+                        android:paddingRight="10dp" />
+
+                    <Spinner
+                        android:layout_width="wrap_content"
+                        android:layout_height="fill_parent"
+                        android:id="@+id/logcontextSpinner" />
+
+                </LinearLayout>
+            </LinearLayout>
             <ToggleButton
                 android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
+                android:layout_height="fill_parent"
                 android:id="@+id/startLoggerTgl"
                 android:layout_gravity="center_horizontal"
                 android:checked="false"
-                android:onClick="startLoggerTglOnClick"
-               />
-
+                android:onClick="startLoggerTglOnClick" />
         </LinearLayout>
+
+
 
         <LinearLayout
             android:orientation="horizontal"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_gravity="center_horizontal">
+            android:layout_gravity="center_horizontal"
+            android:paddingTop="10dp">
 
             <Button
                 android:layout_width="wrap_content"
