@@ -1,7 +1,6 @@
 # SOURCE CODES FOR MOBILE SENSING SYSTEMS LAB SS2015
-# ====================================================
 
 ## Sub projects include:
-* sensor_loggger
-* data_server
-* data_plotter
+* _Android_ sensor_loggger
+* _JavaScript_ data_server
+* _Python_ data_plotter
