@@ -1,0 +1,22 @@
+{
+  "name": "sensors_data_collector",
+  "description": "REST collector for data sensors",
+  "author": "Omar Al-Safi",
+  "version": "0.0.1",
+  "license": "apache 2",
+  "controllers": {
+    "/" : "router.js"
+  },
+  "scripts": {
+    "setup": "scripts/setup.js",
+    "teardown": "scripts/teardown.js"
+  },
+  "tests": "test/**/*.js",
+   "configuration": {
+    "collectionName": {
+      "description": "Module's collection name",
+      "type": "string",
+      "default": "sensors_data"
+    }
+  }
+}
