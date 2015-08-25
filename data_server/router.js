@@ -64,18 +64,18 @@
 
     /**
     *
-    * List data
+    * List data: n,p
     *
     */
     app.get("/list", function(req, res){
     	//sensor name
-    	let sensor_name = req.params("sensor");
-        let context_name = req.params("context");
+    	let sensor_name = req.params("n");
+        let context_name = req.params("p");
 
     	//Retrive data from collection
     	//let data = col.byExample({"n" : sensor_name}).toArray();
     	let query = Foxx.createQuery({
-    		query: 'FOR n IN @@collectionName FILTER n.n == @sensorName AND n.p == @contextName RETURN {"time" : DATE_ISO8601(n.t), "v0" : n.v0, "v1" : n.v1, "v2" : n.v2, "v3" : n.v3, "v4" : n.v4, "v5" : n.v5, "sensor_name": n.n, "context": n.p}'
+    		query: 'FOR n IN @@collectionName FILTER n.n == @sensorName AND n.p == @contextName RETURN {"t" : DATE_ISO8601(n.t), "v0" : n.v0, "v1" : n.v1, "v2" : n.v2, "v3" : n.v3, "v4" : n.v4, "v5" : n.v5, "n": n.n, "p": n.p, "e": n.e}'
     	});
 
     	let bind = {
@@ -86,6 +86,34 @@
 
     	res.json(query(bind));
 
-    }).queryParam("sensor", joi.string().insensitive().required()).queryParam("context", joi.string().insensitive().required());
+    }).queryParam("n", joi.string().insensitive().required()).queryParam("p", joi.string().insensitive().required());
+	
+	
+    /**
+    *
+    * List data: n
+    *
+    */	
+	app.get("/list2", function(req, res){
+    	//sensor name
+    	let sensor_name = req.params("n");
+		let start = req.params("start");
+		let end = req.params("end");
+
+    	//Retrive data from collection
+		let query = Foxx.createQuery({
+    		query: 'FOR n IN @@collectionName FILTER n.n == @sensorName AND n.e == 0 AND DATE_ISO8601(n.t) >= @startTime AND DATE_ISO8601(n.t) < @endTime RETURN {"t" : DATE_ISO8601(n.t), "v0" : n.v0, "v1" : n.v1, "v2" : n.v2, "v3" : n.v3, "v4" : n.v4, "v5" : n.v5, "n": n.n, "p": n.p}'
+    	});
+
+    	let bind = {
+    		'@collectionName': cfg.collectionName,
+    		sensorName : sensor_name,
+			startTime : start,
+			endTime : end,
+    	};
+
+    	res.json(query(bind));
+
+	}).queryParam("n", joi.string().insensitive().required()).queryParam("start", joi.string().insensitive().required()).queryParam("end", joi.string().insensitive().required());
 
 })();
