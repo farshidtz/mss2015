@@ -31,7 +31,7 @@ import java.util.Vector;
 
 public class MainActivity extends Activity {
     private final String SERVER_ADDR = "http://46.101.133.187:8529/sensors-data-collector/save";
-    private final int PROC_SLICE = 20000;
+    private final int PROC_SLICE = 20000; // number of entries in each request
 
     // UI objects
     private TextView logTxt;
@@ -229,7 +229,7 @@ public class MainActivity extends Activity {
         @Override
         protected void onPostExecute(String message) {
             super.onPostExecute(message);
-            Log.v("JSON", message);
+            Log.d("JSON", message);
             log(message);
 
             // Dismiss the progress dialog

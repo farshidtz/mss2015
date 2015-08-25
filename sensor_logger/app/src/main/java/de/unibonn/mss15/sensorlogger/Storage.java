@@ -18,12 +18,26 @@ public class Storage {
     private Storage buffer;
 
     // Append an entry
-    public void AddEntry(long t, String n, int axes, float... values){
+    public void AddEntry(long t, int e, String n, int axes, float... values){
         try{
-            Entries.add(new Entry(Position,t,n,axes,values));
+            Entries.add(new Entry(Position,t,e,n,axes,values));
         }
         catch(IllegalArgumentException|SecurityException|IllegalAccessException|NoSuchFieldException ex){
             Log.v("Exception", ex.getMessage());
+        }
+    }
+
+    // Re-set error rates of the last 10 seconds
+    public void ResetErrorRates(long stopTime){
+        for(int i = Entries.size()-1; i>=0; i--){
+            Entry entry = Entries.get(i);
+            int diff = (int) (stopTime - entry.t)/1000;
+            if( diff < 10 ){
+                entry.e = 10 - diff;
+                Entries.set(i,entry);
+            }
+            else
+                break;
         }
     }
 
@@ -63,8 +77,10 @@ public class Storage {
 
 class Entry {
     public String p;
-    public long t;
-    public String n;
+    public long t; // time
+    public int e; // error rate
+    public String n; // sensor name
+    // values
     public float v0;
     public Float v1;
     public Float v2;
@@ -72,9 +88,10 @@ class Entry {
     public Float v4;
     public Float v5;
 
-    public Entry(String p, long t, String n, int axes, float... values) throws IllegalArgumentException, SecurityException, IllegalAccessException, NoSuchFieldException{
+    public Entry(String p, long t, int e, String n, int axes, float... values) throws IllegalArgumentException, SecurityException, IllegalAccessException, NoSuchFieldException{
         this.p = p;
         this.t = t;
+        this.e = e;
         this.n = n;
 
         for (int i = 0; i < axes; i++) {
