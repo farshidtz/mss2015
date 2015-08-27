@@ -12,6 +12,8 @@ import android.os.IBinder;
 import android.util.Log;
 import android.widget.Toast;
 
+import java.util.TimeZone;
+
 /**
  * Service to collect sensor data and return on stop
  */
@@ -31,6 +33,7 @@ public class SensorLoggerService extends Service {
     // Local attributes
     private long serviceStartTime;
     private long serviceTime;
+    private int timezoneOffset = TimeZone.getDefault().getRawOffset() + TimeZone.getDefault().getDSTSavings();
 
     /**
      * Class used for the client Binder.  Because we know this service always
@@ -75,7 +78,7 @@ public class SensorLoggerService extends Service {
         @Override
         protected Void doInBackground(SensorEvent... events) {
             SensorEvent event = events[0];
-            long t = System.currentTimeMillis();
+            long t = System.currentTimeMillis() + timezoneOffset;
 
             // Error rate
             serviceTime = (int) ((t - serviceStartTime)/1000);
@@ -102,18 +105,32 @@ public class SensorLoggerService extends Service {
 
             } else if (sensor.getType() == Sensor.TYPE_PRESSURE) {
                 float v = event.values[0];
-                Log.d("Baro", Float.toString(v));
-                storage.AddEntry(t, e, "baro",1,event.values);
+                Log.d("Pressure", Float.toString(v));
+                storage.AddEntry(t, e, "pressure",1,event.values);
 
             } else if (sensor.getType() == Sensor.TYPE_LIGHT) {
                 float v = event.values[0];
                 Log.d("Light", Float.toString(v));
-                storage.AddEntry(t, e, "light",1,event.values);
+                storage.AddEntry(t, e, "light", 1, event.values);
 
             } else if (sensor.getType() == Sensor.TYPE_PROXIMITY) {
                 float v = event.values[0];
                 Log.d("Proximity", Float.toString(v));
-                storage.AddEntry(t, e, "proxi",1,event.values);
+                storage.AddEntry(t, e, "proximity",1,event.values);
+
+            } else if (sensor.getType() == Sensor.TYPE_LINEAR_ACCELERATION) {
+                float x = event.values[0];
+                float y = event.values[1];
+                float z = event.values[2];
+                Log.d("LinAcc:", Float.toString(x) + "," + Float.toString(y) + "," + Float.toString(z));
+                storage.AddEntry(t, e, "linacc", 3, event.values);
+
+            } else if (sensor.getType() == Sensor.TYPE_ROTATION_VECTOR) {
+                float x = event.values[0];
+                float y = event.values[1];
+                float z = event.values[2];
+                Log.d("Rotation:", Float.toString(x) + "," + Float.toString(y) + "," + Float.toString(z));
+                storage.AddEntry(t, e, "rotation", 3, event.values);
 
             }
 
@@ -132,21 +149,32 @@ public class SensorLoggerService extends Service {
         Log.v("Sampling period", Integer.toString(samplingRate / 1000) + "ms");
 
         // Record service start time
-        serviceStartTime = System.currentTimeMillis();
+        serviceStartTime = System.currentTimeMillis()+timezoneOffset;
+        // A header above all entries at each logging session
+        storage.AddEntry(serviceStartTime, 100, "system", 0);
+/*        storage.AddEntry(serviceStartTime, 100, "acc", 3, 0,0,0);
+        storage.AddEntry(serviceStartTime, 100, "gyro",3, 0,0,0);
+        storage.AddEntry(serviceStartTime, 100, "pressure",1, 0);
+        storage.AddEntry(serviceStartTime, 100, "light", 1, 0);
+        storage.AddEntry(serviceStartTime, 100, "proximity",1, 0);
+        storage.AddEntry(serviceStartTime, 100, "linacc", 3, 0,0,0);
+        storage.AddEntry(serviceStartTime, 100, "rotation", 3, 0,0,0);*/
 
         // SensorManager.SENSOR_DELAY_GAME
-        sensorManager.registerListener(sensorListener, sensorManager.getDefaultSensor(Sensor.TYPE_ACCELEROMETER), samplingRate, samplingRate);
-        sensorManager.registerListener(sensorListener, sensorManager.getDefaultSensor(Sensor.TYPE_GYROSCOPE), samplingRate, samplingRate);
+        //sensorManager.registerListener(sensorListener, sensorManager.getDefaultSensor(Sensor.TYPE_ACCELEROMETER), samplingRate, samplingRate);
+        //sensorManager.registerListener(sensorListener, sensorManager.getDefaultSensor(Sensor.TYPE_GYROSCOPE), samplingRate, samplingRate);
         sensorManager.registerListener(sensorListener, sensorManager.getDefaultSensor(Sensor.TYPE_PRESSURE), samplingRate, samplingRate);
         sensorManager.registerListener(sensorListener, sensorManager.getDefaultSensor(Sensor.TYPE_LIGHT), samplingRate, samplingRate);
         sensorManager.registerListener(sensorListener, sensorManager.getDefaultSensor(Sensor.TYPE_PROXIMITY), samplingRate, samplingRate);
+        sensorManager.registerListener(sensorListener, sensorManager.getDefaultSensor(Sensor.TYPE_LINEAR_ACCELERATION), samplingRate, samplingRate);
+        sensorManager.registerListener(sensorListener, sensorManager.getDefaultSensor(Sensor.TYPE_ROTATION_VECTOR ), samplingRate, samplingRate);
     }
 
     // Unregister from sensors and return data
     public Storage stopLogging(){
         sensorManager.unregisterListener(sensorListener);
         // Reset error rates
-        storage.ResetErrorRates(System.currentTimeMillis());
+        storage.ResetErrorRates(System.currentTimeMillis()+timezoneOffset);
         return storage;
     }
 

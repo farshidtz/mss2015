@@ -81,7 +81,7 @@ class Entry {
     public int e; // error rate
     public String n; // sensor name
     // values
-    public float v0;
+    public Float v0;
     public Float v1;
     public Float v2;
     public Float v3;
