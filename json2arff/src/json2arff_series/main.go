@@ -7,6 +7,7 @@ import (
 	"flag"
 	"fmt"
 	"io/ioutil"
+	"math"
 	"net/http"
 	"os"
 	"time"
@@ -133,9 +134,13 @@ func main() {
 
 	// data
 	buffer.WriteString("@data\n")
-	for _, d := range data {
+	for i := 0; i < len(data)-20; i = i + 20 {
+		for s := 0; s < 20; s++ {
+			magn := math.Sqrt(math.Pow(*data[i+s].V0, 2) + math.Pow(*data[i+s].V1, 2) + math.Pow(*data[i+s].V2, 2))
+			buffer.WriteString(fmt.Sprintf("%v ", magn))
+		}
 		//buffer.WriteString(fmt.Sprintf("%v %s%s %s\n", d.Time, formatAttrs(d), d.SensorName, d.Position))
-		buffer.WriteString(fmt.Sprintf("%s%s\n", formatAttrs(d), d.Position))
+		buffer.WriteString(fmt.Sprintf("%s\n", data[i].Position))
 	}
 
 	// write to file
