@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"io/ioutil"
 	"math"
-	"math/rand"
 	"net/http"
 	"os"
 	"strings"
@@ -33,9 +32,7 @@ type Session struct {
 }
 
 type NiceEntry struct {
-	LinAcc   float64
-	Light    float64
-	Attr     [5]float64
+	Attr     [10]float64
 	Position string
 	Error    int
 }
@@ -92,11 +89,18 @@ func filterBySensor(in []Entry, n string) []Entry {
 	return slice
 }
 
-func fillContinuousData(niceSession *NiceSession, in []Entry, n, p string, attrNo int) {
+func fillContinuousData(niceSession *NiceSession, in []Entry, n, p string, attrNo, totalAttr int, magnitude bool) {
 	slice := filterBySensor(in, n)
 
+	if magnitude && totalAttr != 3 {
+		fmt.Println(n, "Magnitute needs 3 attributes!")
+		bufio.NewReader(os.Stdin).ReadBytes('\n')
+		os.Exit(1)
+	}
+
+	fmt.Println(n, "Pre Proc...")
+	var totals = make([]float64, len(niceSession.entries))
 	for _, e := range slice {
-		value := math.Sqrt(math.Pow(e.V0, 2) + math.Pow(e.V1, 2) + math.Pow(e.V2, 2))
 		time := e.Time / 1000
 
 		niceIndex := time - niceSession.StartTime
@@ -104,20 +108,45 @@ func fillContinuousData(niceSession *NiceSession, in []Entry, n, p string, attrN
 			fmt.Println(n, "out of bound:", niceIndex, ">=", len(niceSession.entries))
 			continue
 		}
-		niceSession.entries[niceIndex].Attr[attrNo] = niceSession.entries[niceIndex].Attr[attrNo] + value
+		if totalAttr == 1 {
+			niceSession.entries[niceIndex].Attr[attrNo] = niceSession.entries[niceIndex].Attr[attrNo] + e.V0
+		} else if totalAttr == 3 {
+			niceSession.entries[niceIndex].Attr[attrNo] = niceSession.entries[niceIndex].Attr[attrNo] + e.V0
+			niceSession.entries[niceIndex].Attr[attrNo+1] = niceSession.entries[niceIndex].Attr[attrNo+1] + e.V1
+			niceSession.entries[niceIndex].Attr[attrNo+2] = niceSession.entries[niceIndex].Attr[attrNo+2] + e.V2
+		} else {
+			fmt.Println(n, "Total attribute", totalAttr, "not supported!")
+			bufio.NewReader(os.Stdin).ReadBytes('\n')
+			os.Exit(1)
+		}
+		if magnitude {
+			magnitude := math.Sqrt(math.Pow(e.V0, 2) + math.Pow(e.V1, 2) + math.Pow(e.V2, 2))
+			niceSession.entries[niceIndex].Attr[attrNo+3] = niceSession.entries[niceIndex].Attr[attrNo+3] + magnitude
+		}
+
+		totals[niceIndex]++
 		niceSession.entries[niceIndex].Position = p
 		niceSession.entries[niceIndex].Error = e.ErrorRate
+
 		fmt.Println(n, time, niceSession.entries[niceIndex].Attr[attrNo])
+	}
+	fmt.Println(n, "Post Proc...")
+	for i := range niceSession.entries {
+		for t := 0; t < totalAttr; t++ {
+			niceSession.entries[i].Attr[attrNo+t] = niceSession.entries[i].Attr[attrNo+t] / totals[i]
+		}
+		if magnitude {
+			niceSession.entries[i].Attr[attrNo+3] = niceSession.entries[i].Attr[attrNo+3] / totals[i]
+		}
 	}
 }
 
 func fillOnchangeData(niceSession *NiceSession, in []Entry, n, p string, attrNo int) {
 	slice := filterBySensor(in, n)
 
-	//var tempIndex uint64 = 0
+	fmt.Println(n, "Pre Proc...")
 	var totals = make([]float64, len(niceSession.entries))
 	for _, e := range slice {
-		value := e.V0
 		time := e.Time / 1000
 
 		niceIndex := time - niceSession.StartTime
@@ -125,18 +154,15 @@ func fillOnchangeData(niceSession *NiceSession, in []Entry, n, p string, attrNo 
 			fmt.Println(n, "out of bound:", niceIndex, ">=", len(niceSession.entries))
 			continue
 		}
-		niceSession.entries[niceIndex].Attr[attrNo] = niceSession.entries[niceIndex].Attr[attrNo] + value
-
+		niceSession.entries[niceIndex].Attr[attrNo] = niceSession.entries[niceIndex].Attr[attrNo] + e.V0
 		totals[niceIndex]++
-		//tempIndex = niceIndex
 
 		fmt.Println(n, time, niceSession.entries[niceIndex].Attr[attrNo], totals[niceIndex])
 	}
-	fmt.Println("--- Post ")
+	fmt.Println(n, "Post Proc...")
 	var latestValue float64 = niceSession.entries[0].Attr[attrNo] / totals[0]
 	for i := range niceSession.entries {
-
-		fmt.Println(n, uint64(i)+niceSession.StartTime, niceSession.entries[i].Attr[attrNo], totals[i])
+		//fmt.Println(n, uint64(i)+niceSession.StartTime, niceSession.entries[i].Attr[attrNo], totals[i])
 		if totals[i] == 0 {
 			niceSession.entries[i].Attr[attrNo] = latestValue
 		} else {
@@ -151,19 +177,28 @@ func fillOnchangeData(niceSession *NiceSession, in []Entry, n, p string, attrNo 
 // Split sessions
 func split(entries []Entry) []Session {
 	var sessions []Session
+	fmt.Println("Splitting sessions...")
 	appendHead := 1
 	for i := 1; i < len(entries); i++ {
-		fmt.Println("split", i)
+		//fmt.Println("split", i)
 		if entries[i].ErrorRate == 100 {
 			sessions = append(sessions, Session{entries[appendHead:i]})
 			appendHead = i + 1
-			fmt.Println("head", appendHead)
+			//fmt.Println("head", appendHead)
 		}
 		if i == len(entries)-1 { // EOF
 			sessions = append(sessions, Session{entries[appendHead:i]})
 		}
 	}
 	return sessions
+}
+
+func attributes(e *NiceEntry) string {
+	var buffer bytes.Buffer
+	for _, a := range e.Attr {
+		buffer.WriteString(fmt.Sprintf("%v ", a))
+	}
+	return buffer.String()
 }
 
 var (
@@ -180,7 +215,7 @@ func main() {
 	}
 
 	//sensors := []string{"linacc", "rotation", "light", "proximity", "pressure"}
-	positions := []string{"SidePocket", "Idle"}
+	positions := []string{"SidePocket", "Idle", "InHand"}
 
 	var allEntries []NiceEntry
 	for _, p := range positions {
@@ -202,11 +237,11 @@ func main() {
 				StartTime: first / 1000,
 			}
 
-			fillContinuousData(&niceSession, s.entries, "linacc", p, 0)
-			fillContinuousData(&niceSession, s.entries, "rotation", p, 1)
-			fillContinuousData(&niceSession, s.entries, "pressure", p, 2)
-			fillOnchangeData(&niceSession, s.entries, "light", p, 3)
-			fillOnchangeData(&niceSession, s.entries, "proximity", p, 4)
+			fillContinuousData(&niceSession, s.entries, "linacc", p, 0, 3, true)    // 0,1,2,3
+			fillContinuousData(&niceSession, s.entries, "rotation", p, 4, 3, false) // 4,5,6
+			fillContinuousData(&niceSession, s.entries, "pressure", p, 7, 1, false) // 7
+			fillOnchangeData(&niceSession, s.entries, "light", p, 8)
+			fillOnchangeData(&niceSession, s.entries, "proximity", p, 9)
 
 			niceData = append(niceData, niceSession.entries...)
 
@@ -215,10 +250,10 @@ func main() {
 	}
 
 	//// Shuffle
-	for i := range allEntries {
-		j := rand.Intn(i + 1)
-		allEntries[i], allEntries[j] = allEntries[j], allEntries[i]
-	}
+	//	for i := range allEntries {
+	//		j := rand.Intn(i + 1)
+	//		allEntries[i], allEntries[j] = allEntries[j], allEntries[i]
+	//	}
 
 	var buffer bytes.Buffer
 
@@ -226,8 +261,13 @@ func main() {
 	buffer.WriteString("@relation " + fmt.Sprintf("%v_%v", time.Now().Unix(), "complex_features") + "\n\n")
 
 	// attributes
-	buffer.WriteString("@attribute linacc numeric\n")
-	buffer.WriteString("@attribute rotation numeric\n")
+	buffer.WriteString("@attribute linaccX numeric\n")
+	buffer.WriteString("@attribute linaccY numeric\n")
+	buffer.WriteString("@attribute linaccZ numeric\n")
+	buffer.WriteString("@attribute linaccMag numeric\n")
+	buffer.WriteString("@attribute rotationX numeric\n")
+	buffer.WriteString("@attribute rotationY numeric\n")
+	buffer.WriteString("@attribute rotationZ numeric\n")
 	buffer.WriteString("@attribute pressure numeric\n")
 	buffer.WriteString("@attribute light numeric\n")
 	buffer.WriteString("@attribute proximity numeric\n")
@@ -238,12 +278,8 @@ func main() {
 	buffer.WriteString("@data\n")
 	for _, d := range allEntries {
 		if d.Error == 0 {
-			buffer.WriteString(fmt.Sprintf("%v %v %v %v %v %v\n",
-				d.Attr[0],
-				d.Attr[1],
-				d.Attr[2],
-				d.Attr[3],
-				d.Attr[4],
+			buffer.WriteString(fmt.Sprintf("%v%v\n",
+				attributes(&d),
 				d.Position,
 			))
 		}

@@ -13,7 +13,7 @@ import (
 )
 
 type Entry struct {
-	Time       string   `json:"t"`
+	Time       uint64   `json:"t"`
 	V0         *float64 `json:"v0"`
 	V1         *float64 `json:"v1"`
 	V2         *float64 `json:"v2"`

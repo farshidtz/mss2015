@@ -7,6 +7,12 @@
 			"revision": "2df174808ee097f90d259e432cc04442cf60be21",
 			"branch": "master",
 			"path": "/spew"
+		},
+		{
+			"importpath": "github.com/flyingsparx/wekago",
+			"repository": "https://github.com/flyingsparx/wekago",
+			"revision": "42b3339fa349e93722355dfe887815e791d52a2a",
+			"branch": "master"
 		}
 	]
 }
