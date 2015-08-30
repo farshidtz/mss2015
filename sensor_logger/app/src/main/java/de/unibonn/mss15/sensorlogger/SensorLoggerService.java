@@ -11,6 +11,7 @@ import android.os.Binder;
 import android.os.IBinder;
 import android.util.Log;
 import android.widget.Toast;
+import android.os.PowerManager;
 
 import java.util.TimeZone;
 
@@ -22,13 +23,17 @@ public class SensorLoggerService extends Service {
     // Binder given to client
     private final IBinder mBinder = new LocalBinder();
 
-    // Sensor system attributes
+    // System attributes
     private SensorManager sensorManager = null;
     private SensorEventListener sensorListener;
 
     // Sensor storage
     private Storage storage = new Storage();
     private int samplingRate; // micro seconds
+
+    // Power management
+    PowerManager powerManager;
+    PowerManager.WakeLock wakeLock;
 
     // Local attributes
     private long serviceStartTime;
@@ -50,6 +55,10 @@ public class SensorLoggerService extends Service {
     public IBinder onBind(Intent intent) {
         // Get sampling rate from Activity
         samplingRate = intent.getIntExtra("SamplingRate", 500)*1000;
+
+        // Setup power manager
+        powerManager = (PowerManager) getSystemService(POWER_SERVICE);
+        wakeLock = powerManager.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "WAKE_LOCK");
 
         sensorManager = (SensorManager) getSystemService(SENSOR_SERVICE);
         sensorListener = new SensorEventListener() {
@@ -129,8 +138,17 @@ public class SensorLoggerService extends Service {
                 float x = event.values[0];
                 float y = event.values[1];
                 float z = event.values[2];
+                //float zz = event.values[3];
                 Log.d("Rotation:", Float.toString(x) + "," + Float.toString(y) + "," + Float.toString(z));
                 storage.AddEntry(t, e, "rotation", 3, event.values);
+
+            } else if (sensor.getType() == Sensor.TYPE_GRAVITY) {
+                float x = event.values[0];
+                float y = event.values[1];
+                float z = event.values[2];
+                //float zz = event.values[3];
+                Log.d("Gravity:", Float.toString(x) + "," + Float.toString(y) + "," + Float.toString(z));
+                storage.AddEntry(t, e, "gravity", 3, event.values);
 
             }
 
@@ -145,6 +163,9 @@ public class SensorLoggerService extends Service {
         // Store the spinner's value (phone position)
         storage.SetPosition(phonePos);
 
+        // Keep CPU awake
+        wakeLock.acquire();
+
         Toast.makeText(this, "Sampling every "+ Integer.toString(samplingRate/1000)+"ms", Toast.LENGTH_SHORT).show();
         Log.v("Sampling period", Integer.toString(samplingRate / 1000) + "ms");
 
@@ -152,27 +173,26 @@ public class SensorLoggerService extends Service {
         serviceStartTime = System.currentTimeMillis()+timezoneOffset;
         // A header above all entries at each logging session
         storage.AddEntry(serviceStartTime, 100, "system", 0);
-/*        storage.AddEntry(serviceStartTime, 100, "acc", 3, 0,0,0);
-        storage.AddEntry(serviceStartTime, 100, "gyro",3, 0,0,0);
-        storage.AddEntry(serviceStartTime, 100, "pressure",1, 0);
-        storage.AddEntry(serviceStartTime, 100, "light", 1, 0);
-        storage.AddEntry(serviceStartTime, 100, "proximity",1, 0);
-        storage.AddEntry(serviceStartTime, 100, "linacc", 3, 0,0,0);
-        storage.AddEntry(serviceStartTime, 100, "rotation", 3, 0,0,0);*/
 
-        // SensorManager.SENSOR_DELAY_GAME
+        // Register sensor listeners
         //sensorManager.registerListener(sensorListener, sensorManager.getDefaultSensor(Sensor.TYPE_ACCELEROMETER), samplingRate, samplingRate);
-        //sensorManager.registerListener(sensorListener, sensorManager.getDefaultSensor(Sensor.TYPE_GYROSCOPE), samplingRate, samplingRate);
+        sensorManager.registerListener(sensorListener, sensorManager.getDefaultSensor(Sensor.TYPE_GYROSCOPE), samplingRate, samplingRate);
         sensorManager.registerListener(sensorListener, sensorManager.getDefaultSensor(Sensor.TYPE_PRESSURE), samplingRate, samplingRate);
         sensorManager.registerListener(sensorListener, sensorManager.getDefaultSensor(Sensor.TYPE_LIGHT), samplingRate, samplingRate);
         sensorManager.registerListener(sensorListener, sensorManager.getDefaultSensor(Sensor.TYPE_PROXIMITY), samplingRate, samplingRate);
         sensorManager.registerListener(sensorListener, sensorManager.getDefaultSensor(Sensor.TYPE_LINEAR_ACCELERATION), samplingRate, samplingRate);
         sensorManager.registerListener(sensorListener, sensorManager.getDefaultSensor(Sensor.TYPE_ROTATION_VECTOR ), samplingRate, samplingRate);
+        sensorManager.registerListener(sensorListener, sensorManager.getDefaultSensor(Sensor.TYPE_GRAVITY ), samplingRate, samplingRate);
     }
 
     // Unregister from sensors and return data
     public Storage stopLogging(){
+        // Unregister sensor listeners
         sensorManager.unregisterListener(sensorListener);
+
+        // Release CPU Lock
+        wakeLock.release();
+
         // Reset error rates
         storage.ResetErrorRates(System.currentTimeMillis()+timezoneOffset);
         return storage;

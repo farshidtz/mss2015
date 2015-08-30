@@ -4,6 +4,7 @@
     <string name="action_settings">Settings</string>
     <string name="logLbl">Debugging Log:</string>
     <string-array name="logging_contexts">
+        <item>[Debugging]</item>
         <item>Side Pocket</item>
         <item>Back Pocket</item>
         <item>Handbag</item>

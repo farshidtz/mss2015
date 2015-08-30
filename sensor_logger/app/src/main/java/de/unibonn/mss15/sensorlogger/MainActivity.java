@@ -31,7 +31,7 @@ import java.util.Vector;
 
 public class MainActivity extends Activity {
     private final String SERVER_ADDR = "http://46.101.133.187:8529/sensors-data-collector/save";
-    private final int PROC_SLICE = 20000; // number of entries in each request
+    private final int PROC_SLICE = 5000; // number of entries in each marshal+POST request
 
     // UI objects
     private TextView logTxt;
@@ -113,6 +113,7 @@ public class MainActivity extends Activity {
         } else {
             // Stop service
             stopLoggerService();
+
             log("Service stopped.");
             spinner.setEnabled(true);
             samplingRateTxt.setEnabled(true);
@@ -176,7 +177,7 @@ public class MainActivity extends Activity {
         @Override
         protected void onPreExecute() {
             super.onPreExecute();
-            log("POSTing " + storage.Size() + " entries in " + PROC_SLICE + " blocks ...");
+            log("Posting " + storage.Size() + " entries in " + PROC_SLICE + " blocks ...");
             // Showing progress dialog
             pDialog = new ProgressDialog(MainActivity.this);
             pDialog.setMessage("Please wait ...");
