@@ -1,6 +1,9 @@
 package de.unibonn.mss15.sensorlogger;
 
+import android.content.Context;
 import android.util.Log;
+import android.widget.Toast;
+
 
 import org.eclipse.paho.client.mqttv3.IMqttDeliveryToken;
 import org.eclipse.paho.client.mqttv3.MqttCallback;
@@ -12,29 +15,31 @@ import org.eclipse.paho.client.mqttv3.persist.MemoryPersistence;
 import com.google.gson.Gson;
 
 /**
- * Created by Farshid on 05-Sep-15.
+ * Connect to and publish json messages to an MQTT broker
  */
-public class MQTTClient implements MqttCallback {
+public class MQTTClient extends SensorLoggerService implements MqttCallback {
 
+    Context context;
     MemoryPersistence memPer;
     MqttClient client;
     final String BrokerURI = "tcp://192.168.1.42:1883";
     //final String BrokerURI = "tcp://iot.eclipse.org:1883";
 
-    public MQTTClient(){
-        connect();
+    public MQTTClient(Context context){
+        this.context = context;
     }
 
-    private void connect(){
+    public void connect(){
         memPer = new MemoryPersistence();
         try
         {
             client = new MqttClient(BrokerURI, MqttClient.generateClientId(), null);
             client.setCallback(this);
         }
-        catch (MqttException e1)
+        catch (MqttException e)
         {
-            e1.printStackTrace();
+            e.printStackTrace();
+            Toast.makeText(context, "MQTT Error: "+ e.getMessage(), Toast.LENGTH_SHORT).show();
         }
 
         MqttConnectOptions options = new MqttConnectOptions();
@@ -45,6 +50,16 @@ public class MQTTClient implements MqttCallback {
         catch (MqttException e)
         {
             Log.d(getClass().getCanonicalName(), "Connection attempt failed with reason code = " + e.getReasonCode() + ":" + e.getCause());
+            Toast.makeText(context, "MQTT Error: Connection attempt failed: "+ e.getMessage(), Toast.LENGTH_SHORT).show();
+        }
+    }
+
+    public void disconnect(){
+        try {
+            client.disconnect();
+        } catch (MqttException e) {
+            e.printStackTrace();
+            Toast.makeText(context, "MQTT Error: "+ e.getMessage(), Toast.LENGTH_SHORT).show();
         }
     }
 
@@ -59,6 +74,7 @@ public class MQTTClient implements MqttCallback {
         catch (MqttException e)
         {
             Log.d(getClass().getCanonicalName(), "Publish failed with reason code = " + e.getReasonCode());
+            Toast.makeText(context, "MQTT Error: Publish failed: "+ e.getMessage(), Toast.LENGTH_SHORT).show();
         }
     }
 
@@ -70,7 +86,8 @@ public class MQTTClient implements MqttCallback {
             publish(json);
         }
         catch(IllegalArgumentException|SecurityException|IllegalAccessException|NoSuchFieldException ex){
-            Log.v("Exception", ex.getMessage());
+            Log.d("Exception", ex.getMessage());
+            Toast.makeText(context, "MQTT Error: Json marshaller failed: "+ ex.getMessage(), Toast.LENGTH_SHORT).show();
         }
     }
 
@@ -78,6 +95,7 @@ public class MQTTClient implements MqttCallback {
     public void connectionLost(Throwable cause)
     {
         Log.d("MQTT", "MQTT Server connection lost" + cause.getMessage());
+        Toast.makeText(context, "MQTT Server connection lost: "+ cause.getMessage(), Toast.LENGTH_SHORT).show();
     }
     @Override
     public void messageArrived(String topic, MqttMessage message)

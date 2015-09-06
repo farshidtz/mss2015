@@ -13,23 +13,12 @@ import android.util.Log;
 import android.widget.Toast;
 import android.os.PowerManager;
 
-
-import org.eclipse.paho.android.service.MqttAndroidClient;
-import org.eclipse.paho.client.mqttv3.IMqttActionListener;
-import org.eclipse.paho.client.mqttv3.IMqttDeliveryToken;
-import org.eclipse.paho.client.mqttv3.IMqttToken;
-import org.eclipse.paho.client.mqttv3.MqttCallback;
-import org.eclipse.paho.client.mqttv3.MqttClient;
-import org.eclipse.paho.client.mqttv3.MqttConnectOptions;
-import org.eclipse.paho.client.mqttv3.MqttException;
-import org.eclipse.paho.client.mqttv3.MqttMessage;
-import org.eclipse.paho.client.mqttv3.MqttPersistenceException;
-import org.eclipse.paho.client.mqttv3.persist.MemoryPersistence;
-
 import java.util.TimeZone;
 
 /**
- * Service to collect sensor data and return on stop
+ * Service to collect sensor data
+ * Returns on logging mode
+ * Publishes to MQTT on prediction mode
  */
 
 public class SensorLoggerService extends Service {
@@ -68,18 +57,19 @@ public class SensorLoggerService extends Service {
         }
     }
 
+    // Prepare the service
     @Override
     public IBinder onBind(Intent intent) {
         // Get data from Activity
         samplingPeriod = intent.getIntExtra("SamplingPeriod", 500)*1000;
         predictionMode = intent.getBooleanExtra("PredictionMode", false);
 
+        // Setup mqtt client with the service context
+        mqtt = new MQTTClient(this);
+
         // Setup power manager
         powerManager = (PowerManager) getSystemService(POWER_SERVICE);
         wakeLock = powerManager.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "WAKE_LOCK");
-
-        // MQTT client
-        mqtt = new MQTTClient();
 
         sensorManager = (SensorManager) getSystemService(SENSOR_SERVICE);
         sensorListener = new SensorEventListener() {
@@ -97,9 +87,9 @@ public class SensorLoggerService extends Service {
 
     @Override
     public void onDestroy () {
-        // stop the sensor and service
+        // destroy the service
         Toast.makeText(this, "Logger Service Stopped.", Toast.LENGTH_SHORT).show();
-        Log.v("Logger", "Byebye!");
+        Log.d("Logger", "Byebye!");
         stopSelf();
     }
 
@@ -202,6 +192,9 @@ public class SensorLoggerService extends Service {
         // Keep CPU awake
         wakeLock.acquire();
 
+        // start MQTT client
+        mqtt.connect();
+
         Toast.makeText(this, "Sampling every "+ Integer.toString(samplingPeriod/1000)+"ms", Toast.LENGTH_SHORT).show();
         Log.v("Sampling period", Integer.toString(samplingPeriod / 1000) + "ms");
 
@@ -232,6 +225,9 @@ public class SensorLoggerService extends Service {
 
         // Release CPU Lock
         wakeLock.release();
+
+        // Stop mqtt client
+        mqtt.disconnect();
 
         // Reset error rates
         storage.ResetErrorRates(System.currentTimeMillis()+timezoneOffset);
