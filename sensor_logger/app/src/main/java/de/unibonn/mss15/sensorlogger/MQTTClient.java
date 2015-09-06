@@ -15,18 +15,19 @@ import org.eclipse.paho.client.mqttv3.persist.MemoryPersistence;
 import com.google.gson.Gson;
 
 /**
- * Connect to and publish json messages to an MQTT broker
+ * Connect and publish json messages to an MQTT broker
  */
-public class MQTTClient extends SensorLoggerService implements MqttCallback {
+public class MQTTClient implements MqttCallback {
 
     Context context;
     MemoryPersistence memPer;
     MqttClient client;
-    final String BrokerURI = "tcp://192.168.1.42:1883";
-    //final String BrokerURI = "tcp://iot.eclipse.org:1883";
+    String BrokerURI;
+    Boolean connected = true;
 
-    public MQTTClient(Context context){
+    public MQTTClient(Context context, String BrokerURI){
         this.context = context;
+        this.BrokerURI = BrokerURI;
     }
 
     public void connect(){
@@ -38,32 +39,39 @@ public class MQTTClient extends SensorLoggerService implements MqttCallback {
         }
         catch (MqttException e)
         {
-            e.printStackTrace();
-            Toast.makeText(context, "MQTT Error: "+ e.getMessage(), Toast.LENGTH_SHORT).show();
+            Log.d(getClass().getCanonicalName(), "Failed to create MqttClient: " + e.getMessage());
+            Toast.makeText(context, "MQTT Error: "+ e.getMessage(), Toast.LENGTH_LONG).show();
+            connected = false;
         }
 
         MqttConnectOptions options = new MqttConnectOptions();
         try
         {
+            client.setTimeToWait(3000);
             client.connect(options);
         }
-        catch (MqttException e)
+        catch (MqttException|NumberFormatException e)
         {
-            Log.d(getClass().getCanonicalName(), "Connection attempt failed with reason code = " + e.getReasonCode() + ":" + e.getCause());
-            Toast.makeText(context, "MQTT Error: Connection attempt failed: "+ e.getMessage(), Toast.LENGTH_SHORT).show();
+            Log.d(getClass().getCanonicalName(), "Connection attempt failed: :" + e.getMessage());
+            Toast.makeText(context, "MQTT Error: Connection attempt failed: "+ e.getMessage(), Toast.LENGTH_LONG).show();
+            connected = false;
         }
     }
 
     public void disconnect(){
+        if (!connected)
+            return;
         try {
             client.disconnect();
         } catch (MqttException e) {
             e.printStackTrace();
-            Toast.makeText(context, "MQTT Error: "+ e.getMessage(), Toast.LENGTH_SHORT).show();
+            Toast.makeText(context, "MQTT Error: "+ e.getMessage(), Toast.LENGTH_LONG).show();
         }
     }
 
     public void publish(String msg){
+        if (!connected)
+            return;
         try
         {
             MqttMessage message = new MqttMessage();
@@ -74,7 +82,7 @@ public class MQTTClient extends SensorLoggerService implements MqttCallback {
         catch (MqttException e)
         {
             Log.d(getClass().getCanonicalName(), "Publish failed with reason code = " + e.getReasonCode());
-            Toast.makeText(context, "MQTT Error: Publish failed: "+ e.getMessage(), Toast.LENGTH_SHORT).show();
+            Toast.makeText(context, "MQTT Error: Publish failed: "+ e.getMessage(), Toast.LENGTH_LONG).show();
         }
     }
 
@@ -87,7 +95,7 @@ public class MQTTClient extends SensorLoggerService implements MqttCallback {
         }
         catch(IllegalArgumentException|SecurityException|IllegalAccessException|NoSuchFieldException ex){
             Log.d("Exception", ex.getMessage());
-            Toast.makeText(context, "MQTT Error: Json marshaller failed: "+ ex.getMessage(), Toast.LENGTH_SHORT).show();
+            Toast.makeText(context, "MQTT Error: Json marshaller failed: "+ ex.getMessage(), Toast.LENGTH_LONG).show();
         }
     }
 
@@ -95,7 +103,7 @@ public class MQTTClient extends SensorLoggerService implements MqttCallback {
     public void connectionLost(Throwable cause)
     {
         Log.d("MQTT", "MQTT Server connection lost" + cause.getMessage());
-        Toast.makeText(context, "MQTT Server connection lost: "+ cause.getMessage(), Toast.LENGTH_SHORT).show();
+        Toast.makeText(context, "MQTT Server connection lost: "+ cause.getMessage(), Toast.LENGTH_LONG).show();
     }
     @Override
     public void messageArrived(String topic, MqttMessage message)

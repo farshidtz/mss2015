@@ -1,7 +1,8 @@
 <resources>
     <string name="app_name">Sensor Logger</string>
 
-    <string name="action_settings">Settings</string>
+    <string name="menu_setDatabaseAddr">Set Database Address</string>
+    <string name="menu_setMQTTAddr">Set MQTT Address</string>
     <string name="logLbl">Debugging Log:</string>
     <string-array name="logging_contexts">
         <item>[Debugging]</item>

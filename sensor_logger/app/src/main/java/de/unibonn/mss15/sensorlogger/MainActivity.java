@@ -1,9 +1,11 @@
 package de.unibonn.mss15.sensorlogger;
 
 import android.app.Activity;
+import android.app.AlertDialog;
 import android.app.ProgressDialog;
 import android.content.ComponentName;
 import android.content.Context;
+import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.ServiceConnection;
 import android.os.AsyncTask;
@@ -11,8 +13,9 @@ import android.os.Bundle;
 import android.os.IBinder;
 import android.text.TextUtils;
 import android.util.Log;
+import android.view.Menu;
+import android.view.MenuItem;
 import android.view.View;
-import android.view.inputmethod.InputMethodManager;
 import android.widget.ArrayAdapter;
 import android.widget.Button;
 import android.widget.EditText;
@@ -27,12 +30,19 @@ import org.apache.http.client.methods.HttpPost;
 import org.apache.http.entity.StringEntity;
 import org.apache.http.impl.client.DefaultHttpClient;
 
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Vector;
 
 public class MainActivity extends Activity {
-    private final String SERVER_ADDR = "http://46.101.133.187:8529/sensors-data-collector/save";
-    private final int PROC_SLICE = 5000; // number of entries in each marshal+POST request
+    // Default values
+    private String DEFAULT_DATABASE_ADDR = "http://46.101.133.187:8529/sensors-data-collector/save";
+    private String DEFAULT_MQTT_ADDR = "tcp://192.168.1.42:1883";
+    //private String DEFAULT_MQTT_ADDR = "tcp://iot.eclipse.org:1883";
+    private final int DEFAULT_PROC_SLICE = 5000; // number of entries in each marshal+POST request
+    // ONLY USE THIS MAP TO ACCESS VARIABLES
+    private Map defaultValues = new HashMap();
 
     // UI objects
     private TextView logTxt;
@@ -74,14 +84,42 @@ public class MainActivity extends Activity {
         adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
         positionSpinner.setAdapter(adapter);
 
+        // Fill the default values map
+        defaultValues.put("DATABASE_ADDR", DEFAULT_DATABASE_ADDR);
+        defaultValues.put("MQTT_ADDR", DEFAULT_MQTT_ADDR);
+        defaultValues.put("PROC_SLICE", DEFAULT_PROC_SLICE);
+
         storage = new Storage();
     }
 
-/*    @Override
+    @Override
     public boolean onCreateOptionsMenu(Menu menu) {
         // Inflate the menu; this adds items to the action bar if it is present.
         getMenuInflater().inflate(R.menu.menu_main, menu);
         return true;
+    }
+
+    // Prompt for a text input
+    private void textPrompt(final String defaultValues_key, String message){
+        final EditText textEdit = new EditText(this);
+        // Set the default text
+        textEdit.setText((String) defaultValues.get(defaultValues_key));
+        new AlertDialog.Builder(this)
+                .setTitle(defaultValues_key)
+                .setMessage(message)
+                .setView(textEdit)
+                .setPositiveButton("Save", new DialogInterface.OnClickListener() {
+                    public void onClick(DialogInterface dialog, int whichButton) {
+                        // Save the value in the map
+                        defaultValues.put(defaultValues_key, textEdit.getText().toString());
+                        log("Set " + defaultValues_key + " to " + textEdit.getText().toString());
+                        Log.d("textPrompt", "Set " + defaultValues_key + " to " + textEdit.getText().toString());
+                    }
+                })
+                .setNegativeButton("Cancel", new DialogInterface.OnClickListener() {
+                    public void onClick(DialogInterface dialog, int whichButton) {}
+                })
+                .show();
     }
 
     @Override
@@ -92,12 +130,17 @@ public class MainActivity extends Activity {
         int id = item.getItemId();
 
         //noinspection SimplifiableIfStatement
-        if (id == R.id.action_settings) {
+        if (id == R.id.setDatabaseAddr) {
+            textPrompt("DATABASE_ADDR", "Enter the database server address:");
+            return true;
+        }
+        if (id == R.id.setMQTTAddr) {
+            textPrompt("MQTT_ADDR", "Enter the MQTT broker address:");
             return true;
         }
 
         return super.onOptionsItemSelected(item);
-    }*/
+    }
 
     public void log(CharSequence text){
         logTxt.append(text + "\n");
@@ -166,6 +209,7 @@ public class MainActivity extends Activity {
         Intent intent = new Intent(this, SensorLoggerService.class);
         intent.putExtra("SamplingPeriod", Integer.parseInt(samplingPeriodTxt.getText().toString()));
         intent.putExtra("PredictionMode", predictionMode);
+        intent.putExtra("MQTT_ADDR", (String)defaultValues.get("MQTT_ADDR"));
         bindService(intent, mConnection, Context.BIND_AUTO_CREATE);
     }
 
@@ -207,7 +251,7 @@ public class MainActivity extends Activity {
         @Override
         protected void onPreExecute() {
             super.onPreExecute();
-            log("Posting " + storage.Size() + " entries in " + PROC_SLICE + " blocks ...");
+            log("Posting " + storage.Size() + " entries in " + (Integer)defaultValues.get("PROC_SLICE") + " blocks ...");
             // Showing progress dialog
             pDialog = new ProgressDialog(MainActivity.this);
             pDialog.setMessage("Please wait ...");
@@ -227,12 +271,12 @@ public class MainActivity extends Activity {
                 publishProgress(s[0].Size());
 
                 // Convert a slice of storage to json
-                String json = s[0].PopFrontJSON(PROC_SLICE);
+                String json = s[0].PopFrontJSON((Integer)defaultValues.get("PROC_SLICE"));
 
                 //String responseStatusLine = "";
                 try {
                     DefaultHttpClient httpclient = new DefaultHttpClient();
-                    HttpPost httppostreq = new HttpPost(SERVER_ADDR);
+                    HttpPost httppostreq = new HttpPost((String)defaultValues.get("DATABASE_ADDR"));
                     StringEntity se = new StringEntity(json);
                     httppostreq.setEntity(se);
                     HttpResponse httpresponse = httpclient.execute(httppostreq);

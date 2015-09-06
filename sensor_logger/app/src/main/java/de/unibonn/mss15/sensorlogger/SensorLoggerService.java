@@ -40,7 +40,8 @@ public class SensorLoggerService extends Service {
     // Local attributes
     private long serviceStartTime;
     private long serviceTime;
-    private  boolean predictionMode;
+    private boolean predictionMode;
+    private String MQTT_ADDR;
     private int timezoneOffset = TimeZone.getDefault().getRawOffset() + TimeZone.getDefault().getDSTSavings();
 
     // MQTT Client
@@ -63,9 +64,11 @@ public class SensorLoggerService extends Service {
         // Get data from Activity
         samplingPeriod = intent.getIntExtra("SamplingPeriod", 500)*1000;
         predictionMode = intent.getBooleanExtra("PredictionMode", false);
+        MQTT_ADDR = intent.getStringExtra("MQTT_ADDR");
 
         // Setup mqtt client with the service context
-        mqtt = new MQTTClient(this);
+        if(predictionMode)
+            mqtt = new MQTTClient(this, MQTT_ADDR);
 
         // Setup power manager
         powerManager = (PowerManager) getSystemService(POWER_SERVICE);
@@ -193,7 +196,8 @@ public class SensorLoggerService extends Service {
         wakeLock.acquire();
 
         // start MQTT client
-        mqtt.connect();
+        if(predictionMode)
+            mqtt.connect();
 
         Toast.makeText(this, "Sampling every "+ Integer.toString(samplingPeriod/1000)+"ms", Toast.LENGTH_SHORT).show();
         Log.v("Sampling period", Integer.toString(samplingPeriod / 1000) + "ms");
@@ -227,7 +231,8 @@ public class SensorLoggerService extends Service {
         wakeLock.release();
 
         // Stop mqtt client
-        mqtt.disconnect();
+        if(predictionMode)
+            mqtt.disconnect();
 
         // Reset error rates
         storage.ResetErrorRates(System.currentTimeMillis()+timezoneOffset);
