@@ -18,6 +18,7 @@ import android.widget.Button;
 import android.widget.EditText;
 import android.widget.ScrollView;
 import android.widget.Spinner;
+import android.widget.Switch;
 import android.widget.TextView;
 import android.widget.Toast;
 import android.widget.ToggleButton;
@@ -36,15 +37,19 @@ public class MainActivity extends Activity {
     // UI objects
     private TextView logTxt;
     private ScrollView logScroll;
-    private Spinner spinner;
+    private Spinner positionSpinner;
     private ProgressDialog pDialog;
     private TextView syncPendingTxt;
     private Button syncBtn;
-    private EditText samplingRateTxt;
+    private EditText samplingPeriodTxt;
+    private Switch predictionSwitch;
+    private TextView positionLbl;
+    private TextView syncStateLbl;
 
     // Service objects
     SensorLoggerService mService;
     boolean mBound = false;
+    boolean predictionMode = false;
 
     // Storage
     private Storage storage;
@@ -59,12 +64,15 @@ public class MainActivity extends Activity {
         logScroll = (ScrollView) findViewById(R.id.logScroll);
         syncPendingTxt = (TextView) findViewById(R.id.syncPendingTxt);
         syncBtn = (Button) findViewById(R.id.syncBtn);
-        samplingRateTxt= (EditText) findViewById(R.id.samplingRateTxt);
+        samplingPeriodTxt= (EditText) findViewById(R.id.samplingPeriodTxt);
+        predictionSwitch = (Switch)  findViewById(R.id.predictionSwitch);
+        positionLbl = (TextView) findViewById(R.id.positionLbl);
+        syncStateLbl = (TextView) findViewById(R.id.syncStateLbl);
         // Spinner !
-        spinner = (Spinner) findViewById(R.id.logcontextSpinner);
+        positionSpinner = (Spinner) findViewById(R.id.positionSpinner);
         ArrayAdapter<CharSequence> adapter = ArrayAdapter.createFromResource(this, R.array.logging_contexts, android.R.layout.simple_spinner_item);
         adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
-        spinner.setAdapter(adapter);
+        positionSpinner.setAdapter(adapter);
 
         storage = new Storage();
     }
@@ -104,8 +112,10 @@ public class MainActivity extends Activity {
     public void startLoggerTglOnClick(View v) {
         boolean on = ((ToggleButton) v).isChecked();
         if (on) {
-            spinner.setEnabled(false);
-            samplingRateTxt.setEnabled(false);
+            positionSpinner.setEnabled(false);
+            samplingPeriodTxt.setEnabled(false);
+            syncBtn.setEnabled(false);
+            predictionSwitch.setEnabled(false);
 
             // Start service
             startLoggerService();
@@ -115,8 +125,29 @@ public class MainActivity extends Activity {
             stopLoggerService();
 
             log("Service stopped.");
-            spinner.setEnabled(true);
-            samplingRateTxt.setEnabled(true);
+            positionSpinner.setEnabled(true);
+            samplingPeriodTxt.setEnabled(true);
+            syncBtn.setEnabled(true);
+            predictionSwitch.setEnabled(true);
+        }
+    }
+
+    public void predictionSwitchOnClick(View v) {
+        predictionMode = ((Switch) v).isChecked();
+        if (predictionMode) {
+            positionSpinner.setEnabled(false);
+            syncBtn.setEnabled(false);
+            positionLbl.setEnabled(false);
+            syncStateLbl.setEnabled(false);
+            syncPendingTxt.setEnabled(false);
+            log("Switched to prediction mode.");
+        } else {
+            log("Switched to logging mode.");
+            positionSpinner.setEnabled(true);
+            syncBtn.setEnabled(true);
+            positionLbl.setEnabled(true);
+            syncStateLbl.setEnabled(true);
+            syncPendingTxt.setEnabled(true);
         }
     }
 
@@ -125,8 +156,6 @@ public class MainActivity extends Activity {
             Toast.makeText(this, "Logging must be turned off before sync.", Toast.LENGTH_SHORT).show();
             return;
         }
-        // Disable button as a feedback
-        //syncBtn.setEnabled(false);
 
         // Convert to JSON and call POST thread
         new PrepareAndPost().execute(storage);
@@ -135,7 +164,8 @@ public class MainActivity extends Activity {
     public void startLoggerService(){
         // Bind to service
         Intent intent = new Intent(this, SensorLoggerService.class);
-        intent.putExtra("SamplingRate", Integer.parseInt(samplingRateTxt.getText().toString()));
+        intent.putExtra("SamplingPeriod", Integer.parseInt(samplingPeriodTxt.getText().toString()));
+        intent.putExtra("PredictionMode", predictionMode);
         bindService(intent, mConnection, Context.BIND_AUTO_CREATE);
     }
 
@@ -162,7 +192,7 @@ public class MainActivity extends Activity {
             mBound = true;
 
             // Get spinner choice and start logging
-            String chosenContext = spinner.getSelectedItem().toString();
+            String chosenContext = positionSpinner.getSelectedItem().toString();
             mService.startLogging(chosenContext.replace(" ", ""));
         }
 

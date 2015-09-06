@@ -62,7 +62,7 @@ public class MQTTClient implements MqttCallback {
         }
     }
 
-    public void publicJSON(long t, int e, String n, int axes, float... values){
+    public void publishJSON(long t, int e, String n, int axes, float... values){
         try{
             Entry entry = new Entry("?",t,e,n,axes,values);
             Gson gson = new Gson();
@@ -73,7 +73,6 @@ public class MQTTClient implements MqttCallback {
             Log.v("Exception", ex.getMessage());
         }
     }
-
 
     @Override
     public void connectionLost(Throwable cause)
