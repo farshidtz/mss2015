@@ -67,14 +67,14 @@
                     android:layout_height="wrap_content"
                     android:textAppearance="?android:attr/textAppearanceMedium"
                     android:paddingLeft="10dp"
-                    android:paddingRight="10dp"
                     android:id="@+id/predictionSwitch"
                     android:onClick="predictionSwitchOnClick"
                     android:textOff="Logging"
                     android:textOn="Prediction"
                     android:showText="true"
                     android:text="Mode:"
-                    android:padding="10dp" />
+                    android:paddingTop="10dp"
+                    android:paddingBottom="10dp" />
 
 
             </LinearLayout>

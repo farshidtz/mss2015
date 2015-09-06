@@ -28,9 +28,9 @@
             android:enabled="true"
             android:exported="true" >
         </service>
-    </application>
 
-    <!-- MqttService -->
-    <service android:name="org.eclipse.paho.android.service.MqttService" />
+        <!-- MqttService -->
+        <service android:name="org.eclipse.paho.android.service.MqttService" />
+    </application>
 
 </manifest>

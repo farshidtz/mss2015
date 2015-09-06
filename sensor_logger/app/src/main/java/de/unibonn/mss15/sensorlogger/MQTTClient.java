@@ -77,12 +77,12 @@ public class MQTTClient implements MqttCallback {
             MqttMessage message = new MqttMessage();
             message.setQos(1);
             message.setPayload(msg.getBytes());
-            client.publish("sensors/data", message);
+            client.publish("mss2015/sensors/data", message);
         }
         catch (MqttException e)
         {
             Log.d(getClass().getCanonicalName(), "Publish failed with reason code = " + e.getReasonCode());
-            Toast.makeText(context, "MQTT Error: Publish failed: "+ e.getMessage(), Toast.LENGTH_LONG).show();
+            //Toast.makeText(context, "MQTT Error: Publish failed: "+ e.getMessage(), Toast.LENGTH_LONG).show();
         }
     }
 
