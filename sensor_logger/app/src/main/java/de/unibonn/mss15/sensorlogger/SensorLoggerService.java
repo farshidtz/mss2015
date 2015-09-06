@@ -13,6 +13,19 @@ import android.util.Log;
 import android.widget.Toast;
 import android.os.PowerManager;
 
+
+import org.eclipse.paho.android.service.MqttAndroidClient;
+import org.eclipse.paho.client.mqttv3.IMqttActionListener;
+import org.eclipse.paho.client.mqttv3.IMqttDeliveryToken;
+import org.eclipse.paho.client.mqttv3.IMqttToken;
+import org.eclipse.paho.client.mqttv3.MqttCallback;
+import org.eclipse.paho.client.mqttv3.MqttClient;
+import org.eclipse.paho.client.mqttv3.MqttConnectOptions;
+import org.eclipse.paho.client.mqttv3.MqttException;
+import org.eclipse.paho.client.mqttv3.MqttMessage;
+import org.eclipse.paho.client.mqttv3.MqttPersistenceException;
+import org.eclipse.paho.client.mqttv3.persist.MemoryPersistence;
+
 import java.util.TimeZone;
 
 /**
@@ -40,6 +53,9 @@ public class SensorLoggerService extends Service {
     private long serviceTime;
     private int timezoneOffset = TimeZone.getDefault().getRawOffset() + TimeZone.getDefault().getDSTSavings();
 
+    // MQTT Client
+    MQTTClient mqtt;
+
     /**
      * Class used for the client Binder.  Because we know this service always
      * runs in the same process as its clients, we don't need to deal with IPC.
@@ -59,6 +75,9 @@ public class SensorLoggerService extends Service {
         // Setup power manager
         powerManager = (PowerManager) getSystemService(POWER_SERVICE);
         wakeLock = powerManager.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "WAKE_LOCK");
+
+        // MQTT client
+        mqtt = new MQTTClient();
 
         sensorManager = (SensorManager) getSystemService(SENSOR_SERVICE);
         sensorListener = new SensorEventListener() {
@@ -82,6 +101,7 @@ public class SensorLoggerService extends Service {
         stopSelf();
     }
 
+
     // Record data
     private class SensorEventLoggerTask extends AsyncTask<SensorEvent, Void, Void> {
         @Override
@@ -97,6 +117,8 @@ public class SensorLoggerService extends Service {
                 Log.d("Error rate:", Integer.toString(e));
             }
 
+
+
             Sensor sensor = event.sensor;
             if (sensor.getType() == Sensor.TYPE_ACCELEROMETER) {
                 float x = event.values[0];
@@ -104,28 +126,33 @@ public class SensorLoggerService extends Service {
                 float z = event.values[2];
                 Log.d("Acc:", Float.toString(x) + "," + Float.toString(y) + "," + Float.toString(z));
                 storage.AddEntry(t, e, "acc", 3, event.values);
+                mqtt.publicJSON(t, e, "acc", 3, event.values);
 
             } else if (sensor.getType() == Sensor.TYPE_GYROSCOPE) {
                 float x = event.values[0];
                 float y = event.values[1];
                 float z = event.values[2];
                 Log.d("Gyro:", Float.toString(x) + "," + Float.toString(y) + "," + Float.toString(z));
-                storage.AddEntry(t, e, "gyro",3,event.values);
+                storage.AddEntry(t, e, "gyro", 3, event.values);
+                mqtt.publicJSON(t, e, "gyro", 3, event.values);
 
             } else if (sensor.getType() == Sensor.TYPE_PRESSURE) {
                 float v = event.values[0];
                 Log.d("Pressure", Float.toString(v));
-                storage.AddEntry(t, e, "pressure",1,event.values);
+                storage.AddEntry(t, e, "pressure", 1,event.values);
+                mqtt.publicJSON(t, e, "pressure", 1,event.values);
 
             } else if (sensor.getType() == Sensor.TYPE_LIGHT) {
                 float v = event.values[0];
                 Log.d("Light", Float.toString(v));
                 storage.AddEntry(t, e, "light", 1, event.values);
+                mqtt.publicJSON(t, e, "light", 1, event.values);
 
             } else if (sensor.getType() == Sensor.TYPE_PROXIMITY) {
                 float v = event.values[0];
                 Log.d("Proximity", Float.toString(v));
-                storage.AddEntry(t, e, "proximity",1,event.values);
+                storage.AddEntry(t, e, "proximity", 1,event.values);
+                mqtt.publicJSON(t, e, "proximity", 1,event.values);
 
             } else if (sensor.getType() == Sensor.TYPE_LINEAR_ACCELERATION) {
                 float x = event.values[0];
@@ -133,6 +160,7 @@ public class SensorLoggerService extends Service {
                 float z = event.values[2];
                 Log.d("LinAcc:", Float.toString(x) + "," + Float.toString(y) + "," + Float.toString(z));
                 storage.AddEntry(t, e, "linacc", 3, event.values);
+                mqtt.publicJSON(t, e, "linacc", 3, event.values);
 
             } else if (sensor.getType() == Sensor.TYPE_ROTATION_VECTOR) {
                 float x = event.values[0];
@@ -141,6 +169,7 @@ public class SensorLoggerService extends Service {
                 //float zz = event.values[3];
                 Log.d("Rotation:", Float.toString(x) + "," + Float.toString(y) + "," + Float.toString(z));
                 storage.AddEntry(t, e, "rotation", 3, event.values);
+                mqtt.publicJSON(t, e, "rotation", 3, event.values);
 
             } else if (sensor.getType() == Sensor.TYPE_GRAVITY) {
                 float x = event.values[0];
@@ -149,7 +178,7 @@ public class SensorLoggerService extends Service {
                 //float zz = event.values[3];
                 Log.d("Gravity:", Float.toString(x) + "," + Float.toString(y) + "," + Float.toString(z));
                 storage.AddEntry(t, e, "gravity", 3, event.values);
-
+                mqtt.publicJSON(t, e, "gravity", 3, event.values);
             }
 
             return null;
