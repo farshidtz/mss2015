@@ -2,6 +2,12 @@
 	"version": 0,
 	"dependencies": [
 		{
+			"importpath": "git.eclipse.org/gitroot/paho/org.eclipse.paho.mqtt.golang.git",
+			"repository": "https://git.eclipse.org/gitroot/paho/org.eclipse.paho.mqtt.golang.git",
+			"revision": "0d95fb886332902c477408b4b554667f65d01605",
+			"branch": "master"
+		},
+		{
 			"importpath": "github.com/davecgh/go-spew/spew",
 			"repository": "https://github.com/davecgh/go-spew",
 			"revision": "2df174808ee097f90d259e432cc04442cf60be21",
@@ -13,6 +19,19 @@
 			"repository": "https://github.com/flyingsparx/wekago",
 			"revision": "42b3339fa349e93722355dfe887815e791d52a2a",
 			"branch": "master"
+		},
+		{
+			"importpath": "github.com/pborman/uuid",
+			"repository": "https://github.com/pborman/uuid",
+			"revision": "cccd189d45f7ac3368a0d127efb7f4d08ae0b655",
+			"branch": "master"
+		},
+		{
+			"importpath": "golang.org/x/net/websocket",
+			"repository": "https://go.googlesource.com/net",
+			"revision": "db8e4de5b2d6653f66aea53094624468caad15d2",
+			"branch": "master",
+			"path": "/websocket"
 		}
 	]
 }
