@@ -19,11 +19,12 @@ import com.google.gson.Gson;
  */
 public class MQTTClient implements MqttCallback {
 
-    Context context;
-    MemoryPersistence memPer;
-    MqttClient client;
-    String BrokerURI;
-    Boolean connected = true;
+    private Context context;
+    private MemoryPersistence memPer;
+    private MqttClient client;
+    private String BrokerURI;
+    private Boolean connected = true;
+    private String clientID = android.os.Build.MODEL.replace(" ", "_");
 
     public MQTTClient(Context context, String BrokerURI){
         this.context = context;
@@ -34,7 +35,7 @@ public class MQTTClient implements MqttCallback {
         memPer = new MemoryPersistence();
         try
         {
-            client = new MqttClient(BrokerURI, MqttClient.generateClientId(), null);
+            client = new MqttClient(BrokerURI, clientID, null);
             client.setCallback(this);
         }
         catch (MqttException e)
