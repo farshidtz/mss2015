@@ -14,6 +14,10 @@ import (
 	MQTT "git.eclipse.org/gitroot/paho/org.eclipse.paho.mqtt.golang.git"
 )
 
+// MQTT Subscription topic
+const MQTT_TOPIC = "mss2015/sensors/data"
+const MQTT_SERVER = "tcp://iot.eclipse.org:1883"
+
 type Entry struct {
 	Time       uint64  `json:"t"`
 	V0         float64 `json:"v0"`
@@ -27,20 +31,10 @@ type Entry struct {
 	ErrorRate  int     `json:"e"`
 }
 
-type Session struct {
-	entries []Entry
-}
-
 type NiceEntry struct {
 	Attr     [10]*float64
 	Position string
 	Error    int
-	Time     uint64
-}
-
-type NiceSession struct {
-	StartTime uint64
-	entries   []NiceEntry
 }
 
 // Returns true of all attributes are set
@@ -57,25 +51,19 @@ func magnitude(V0, V1, V2 float64) float64 {
 	return math.Sqrt(math.Pow(V0, 2) + math.Pow(V1, 2) + math.Pow(V2, 2))
 }
 
-const MQTT_TOPIC = "mss2015/sensors/data"
-
-var (
-	modelPath = flag.String("model", "", "Weka .model file path")
-)
-
 func main() {
 	flag.Parse()
-	if *modelPath == "" {
-		flag.Usage()
+	if len(flag.Args()) < 2 {
+		fmt.Println("Usage: ./predict weka_model_name weka_model_file")
+		fmt.Println("Example: ./predict functions.MultilayerPerceptron trained.model\n")
 		os.Exit(1)
 	}
+	modelName := flag.Args()[0]
+	modelPath := flag.Args()[1]
 
-	//create a ClientOptions struct setting the broker address, clientid, turn
-	//off trace output and set the default message handler
-	opts := MQTT.NewClientOptions().AddBroker("tcp://localhost:1883")
+	// Create MQTT Client
+	opts := MQTT.NewClientOptions().AddBroker(MQTT_SERVER)
 	opts.SetClientID("go-predictor")
-
-	//create and start a client using the above ClientOptions
 	c := MQTT.NewClient(opts)
 	if token := c.Connect(); token.Wait() && token.Error() != nil {
 		fmt.Println(token.Error())
@@ -85,9 +73,8 @@ func main() {
 	// Prediction handler
 	var predict = func(niceEntry NiceEntry, submissionTime time.Time) {
 		// Load the training model
-		model := wekago.NewModel("functions.MultilayerPerceptron")
-		//model := wekago.NewModel("lazy.IBk")
-		model.LoadModel(*modelPath)
+		model := wekago.NewModel(modelName)
+		model.LoadModel(modelPath)
 
 		test_feature0 := wekago.NewFeature("linaccX", fmt.Sprint(*niceEntry.Attr[0]), "numeric")
 		test_feature1 := wekago.NewFeature("linaccY", fmt.Sprint(*niceEntry.Attr[1]), "numeric")
