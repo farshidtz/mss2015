@@ -201,25 +201,22 @@ func attributes(e *NiceEntry) string {
 	return buffer.String()
 }
 
-var (
-	start = flag.String("start", "", "e.g. -start=\"2015-08-25T00:00Z\"")
-	end   = flag.String("end", "", "e.g. -end=\"2016-01-01T00:00Z\"")
-)
-
 func main() {
 	flag.Parse()
-	if *start == "" || *end == "" {
-		flag.Usage()
-		bufio.NewReader(os.Stdin).ReadBytes('\n')
-		return
+	if len(flag.Args()) < 2 {
+		fmt.Println("Usage: ./preproc start_time end_time")
+		fmt.Println("Example: ./preproc 2015-09-07T15:35Z 2016-01-01T00:00Z\n")
+		os.Exit(1)
 	}
+	start := flag.Args()[0]
+	end := flag.Args()[1]
 
 	//sensors := []string{"linacc", "rotation", "light", "proximity", "pressure"}
 	positions := []string{"SidePocket", "Idle", "InHand"}
 
 	var allEntries []NiceEntry
 	for _, p := range positions {
-		sessions := split(queryData(p, *start, *end))
+		sessions := split(queryData(p, start, end))
 		fmt.Println(p, len(sessions))
 
 		var niceData []NiceEntry
