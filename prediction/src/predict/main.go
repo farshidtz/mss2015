@@ -7,6 +7,7 @@ import (
 	"math"
 	"os"
 	"os/signal"
+	"sync"
 	"time"
 
 	"github.com/flyingsparx/wekago"
@@ -34,9 +35,7 @@ type Entry struct {
 }
 
 type NiceEntry struct {
-	Attr     [13]*float64
-	Position string
-	Error    int
+	Attr [13]*float64
 }
 
 // Returns true of all attributes are set
@@ -74,6 +73,8 @@ func main() {
 		fmt.Println(token.Error())
 		os.Exit(1)
 	}
+
+	var wg sync.WaitGroup
 
 	// MQTT message handler (the sensor listener)
 	var niceEntry NiceEntry
@@ -113,7 +114,7 @@ func main() {
 		}
 		// Check whether a NiceEntry is fullfilled
 		if niceEntry.Full() {
-			go predict(niceEntry, time.Now())
+			go predict(&wg, niceEntry, time.Now())
 		} else {
 			fmt.Println("Warming up.")
 		}
@@ -129,18 +130,23 @@ func main() {
 	handler := make(chan os.Signal, 1)
 	signal.Notify(handler, os.Interrupt, os.Kill)
 	<-handler // block the thread
+	fmt.Println("^C Waiting for threads to close...")
+	wg.Wait()
 	// Unsubscribe from topic
 	if token := c.Unsubscribe(MQTT_TOPIC); token.Wait() && token.Error() != nil {
 		fmt.Println(token.Error())
 		os.Exit(1)
 	}
 	c.Disconnect(250)
-	fmt.Println("^C Stopped.")
+	fmt.Println("Done.")
 	os.Exit(0)
 }
 
 // Prediction handler
-func predict(niceEntry NiceEntry, submissionTime time.Time) {
+func predict(wg *sync.WaitGroup, niceEntry NiceEntry, submissionTime time.Time) {
+	wg.Add(1)
+	defer wg.Done()
+
 	// Load the training model
 	model := wekago.NewModel(modelName)
 	model.LoadModel(modelPath)
@@ -180,8 +186,8 @@ func predict(niceEntry NiceEntry, submissionTime time.Time) {
 
 	err := model.Test()
 	if err != nil {
-		fmt.Println("Test error:", err.Error())
-		os.Exit(1)
+		fmt.Println("[Java]", err.Error())
+		return
 	}
 
 	for _, prediction := range model.Predictions {

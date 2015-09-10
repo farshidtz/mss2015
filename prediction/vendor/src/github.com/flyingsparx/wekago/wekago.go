@@ -159,7 +159,8 @@ func (m *model) Test() error{
     m.createARFF("testing", m.testing_instances)
     output, err := exec.Command("java", "-cp", "./weka.jar", "weka.classifiers."+m.classifier, "-T", m.testing_file, "-l", m.model_file, "-p", "0").Output()
     if err != nil || len(output) == 0{
-        return errors.New("Error invoking JVM. Ensure your CLASSPATH is properly set and that your classifier is valid.")
+        //return errors.New("Error invoking JVM. Ensure your CLASSPATH is properly set and that your classifier is valid.")
+		return err
     }
 
     out_string := string(output[:len(output)])
