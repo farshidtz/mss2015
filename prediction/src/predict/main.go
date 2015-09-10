@@ -16,7 +16,9 @@ import (
 
 // MQTT Subscription topic
 const MQTT_TOPIC = "mss2015/sensors/data"
-const MQTT_SERVER = "tcp://iot.eclipse.org:1883"
+
+//const MQTT_SERVER = "tcp://iot.eclipse.org:1883"
+const MQTT_SERVER = "tcp://192.168.1.42:1883"
 
 type Entry struct {
 	Time       uint64  `json:"t"`
@@ -32,7 +34,7 @@ type Entry struct {
 }
 
 type NiceEntry struct {
-	Attr     [10]*float64
+	Attr     [13]*float64
 	Position string
 	Error    int
 }
@@ -51,6 +53,9 @@ func magnitude(V0, V1, V2 float64) float64 {
 	return math.Sqrt(math.Pow(V0, 2) + math.Pow(V1, 2) + math.Pow(V2, 2))
 }
 
+// Global variables
+var modelName, modelPath string
+
 func main() {
 	flag.Parse()
 	if len(flag.Args()) < 2 {
@@ -58,8 +63,8 @@ func main() {
 		fmt.Println("Example: ./predict functions.MultilayerPerceptron trained.model\n")
 		os.Exit(1)
 	}
-	modelName := flag.Args()[0]
-	modelPath := flag.Args()[1]
+	modelName = flag.Args()[0]
+	modelPath = flag.Args()[1]
 
 	// Create MQTT Client
 	opts := MQTT.NewClientOptions().AddBroker(MQTT_SERVER)
@@ -68,54 +73,6 @@ func main() {
 	if token := c.Connect(); token.Wait() && token.Error() != nil {
 		fmt.Println(token.Error())
 		os.Exit(1)
-	}
-
-	// Prediction handler
-	var predict = func(niceEntry NiceEntry, submissionTime time.Time) {
-		// Load the training model
-		model := wekago.NewModel(modelName)
-		model.LoadModel(modelPath)
-
-		test_feature0 := wekago.NewFeature("linaccX", fmt.Sprint(*niceEntry.Attr[0]), "numeric")
-		test_feature1 := wekago.NewFeature("linaccY", fmt.Sprint(*niceEntry.Attr[1]), "numeric")
-		test_feature2 := wekago.NewFeature("linaccZ", fmt.Sprint(*niceEntry.Attr[2]), "numeric")
-		test_feature3 := wekago.NewFeature("linaccMag", fmt.Sprint(*niceEntry.Attr[3]), "numeric")
-		test_feature4 := wekago.NewFeature("rotationX", fmt.Sprint(*niceEntry.Attr[4]), "numeric")
-		test_feature5 := wekago.NewFeature("rotationY", fmt.Sprint(*niceEntry.Attr[5]), "numeric")
-		test_feature6 := wekago.NewFeature("rotationZ", fmt.Sprint(*niceEntry.Attr[6]), "numeric")
-		test_feature7 := wekago.NewFeature("pressure", fmt.Sprint(*niceEntry.Attr[7]), "numeric")
-		test_feature8 := wekago.NewFeature("light", fmt.Sprint(*niceEntry.Attr[8]), "numeric")
-		test_feature9 := wekago.NewFeature("proximity", fmt.Sprint(*niceEntry.Attr[9]), "numeric")
-		outcome := wekago.NewFeature("position", "?", "{SidePocket,Idle,InHand}")
-
-		test_instance1 := wekago.NewInstance()
-		test_instance1.AddFeature(test_feature0)
-		test_instance1.AddFeature(test_feature1)
-		test_instance1.AddFeature(test_feature2)
-		test_instance1.AddFeature(test_feature3)
-		test_instance1.AddFeature(test_feature4)
-		test_instance1.AddFeature(test_feature5)
-		test_instance1.AddFeature(test_feature6)
-		test_instance1.AddFeature(test_feature7)
-		test_instance1.AddFeature(test_feature8)
-		test_instance1.AddFeature(test_feature9)
-		test_instance1.AddFeature(outcome)
-
-		model.AddTestingInstance(test_instance1)
-
-		err := model.Test()
-		if err != nil {
-			fmt.Println("Test error:", err.Error())
-			os.Exit(1)
-		}
-
-		for _, prediction := range model.Predictions {
-			fmt.Printf("Prediction: %s\t Prob: %v\t Took: %v \n",
-				prediction.Predicted_value,
-				prediction.Probability,
-				time.Since(submissionTime),
-			)
-		}
 	}
 
 	// MQTT message handler (the sensor listener)
@@ -146,6 +103,10 @@ func main() {
 			niceEntry.Attr[8] = &e.V0
 		case "proximity":
 			niceEntry.Attr[9] = &e.V0
+		case "gravity":
+			niceEntry.Attr[10] = &e.V0
+			niceEntry.Attr[11] = &e.V1
+			niceEntry.Attr[12] = &e.V2
 		default:
 			// system or unhandled sensor data
 			//fmt.Println("Unrecognized sensor:", e.SensorName)
@@ -153,6 +114,8 @@ func main() {
 		// Check whether a NiceEntry is fullfilled
 		if niceEntry.Full() {
 			go predict(niceEntry, time.Now())
+		} else {
+			fmt.Println("Warming up.")
 		}
 	}
 
@@ -174,4 +137,58 @@ func main() {
 	c.Disconnect(250)
 	fmt.Println("^C Stopped.")
 	os.Exit(0)
+}
+
+// Prediction handler
+func predict(niceEntry NiceEntry, submissionTime time.Time) {
+	// Load the training model
+	model := wekago.NewModel(modelName)
+	model.LoadModel(modelPath)
+
+	test_feature0 := wekago.NewFeature("linaccX", fmt.Sprint(*niceEntry.Attr[0]), "numeric")
+	test_feature1 := wekago.NewFeature("linaccY", fmt.Sprint(*niceEntry.Attr[1]), "numeric")
+	test_feature2 := wekago.NewFeature("linaccZ", fmt.Sprint(*niceEntry.Attr[2]), "numeric")
+	test_feature3 := wekago.NewFeature("linaccMag", fmt.Sprint(*niceEntry.Attr[3]), "numeric")
+	test_feature4 := wekago.NewFeature("rotationX", fmt.Sprint(*niceEntry.Attr[4]), "numeric")
+	test_feature5 := wekago.NewFeature("rotationY", fmt.Sprint(*niceEntry.Attr[5]), "numeric")
+	test_feature6 := wekago.NewFeature("rotationZ", fmt.Sprint(*niceEntry.Attr[6]), "numeric")
+	test_feature7 := wekago.NewFeature("pressure", fmt.Sprint(*niceEntry.Attr[7]), "numeric")
+	test_feature8 := wekago.NewFeature("light", fmt.Sprint(*niceEntry.Attr[8]), "numeric")
+	test_feature9 := wekago.NewFeature("proximity", fmt.Sprint(*niceEntry.Attr[9]), "numeric")
+	test_feature10 := wekago.NewFeature("gravityX", fmt.Sprint(*niceEntry.Attr[10]), "numeric")
+	test_feature11 := wekago.NewFeature("gravityY", fmt.Sprint(*niceEntry.Attr[11]), "numeric")
+	test_feature12 := wekago.NewFeature("gravityZ", fmt.Sprint(*niceEntry.Attr[12]), "numeric")
+	outcome := wekago.NewFeature("position", "?", "{SidePocket,Idle,InHand,Handbag}")
+
+	test_instance1 := wekago.NewInstance()
+	test_instance1.AddFeature(test_feature0)
+	test_instance1.AddFeature(test_feature1)
+	test_instance1.AddFeature(test_feature2)
+	test_instance1.AddFeature(test_feature3)
+	test_instance1.AddFeature(test_feature4)
+	test_instance1.AddFeature(test_feature5)
+	test_instance1.AddFeature(test_feature6)
+	test_instance1.AddFeature(test_feature7)
+	test_instance1.AddFeature(test_feature8)
+	test_instance1.AddFeature(test_feature9)
+	test_instance1.AddFeature(test_feature10)
+	test_instance1.AddFeature(test_feature11)
+	test_instance1.AddFeature(test_feature12)
+	test_instance1.AddFeature(outcome)
+
+	model.AddTestingInstance(test_instance1)
+
+	err := model.Test()
+	if err != nil {
+		fmt.Println("Test error:", err.Error())
+		os.Exit(1)
+	}
+
+	for _, prediction := range model.Predictions {
+		fmt.Printf("Prediction: %s\t Prob: %v\t Took: %v \n",
+			prediction.Predicted_value,
+			prediction.Probability,
+			time.Since(submissionTime),
+		)
+	}
 }

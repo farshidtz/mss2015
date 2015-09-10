@@ -32,7 +32,7 @@ type Session struct {
 }
 
 type NiceEntry struct {
-	Attr     [10]float64
+	Attr     [13]float64
 	Position string
 	Error    int
 }
@@ -212,7 +212,7 @@ func main() {
 	end := flag.Args()[1]
 
 	//sensors := []string{"linacc", "rotation", "light", "proximity", "pressure"}
-	positions := []string{"SidePocket", "Idle", "InHand"}
+	positions := []string{"SidePocket", "Idle", "InHand", "Handbag"}
 
 	var allEntries []NiceEntry
 	for _, p := range positions {
@@ -239,6 +239,7 @@ func main() {
 			fillContinuousData(&niceSession, s.entries, "pressure", p, 7, 1, false) // 7
 			fillOnchangeData(&niceSession, s.entries, "light", p, 8)
 			fillOnchangeData(&niceSession, s.entries, "proximity", p, 9)
+			fillContinuousData(&niceSession, s.entries, "gravity", p, 10, 3, false) // 10,11,12
 
 			niceData = append(niceData, niceSession.entries...)
 
@@ -268,6 +269,9 @@ func main() {
 	buffer.WriteString("@attribute pressure numeric\n")
 	buffer.WriteString("@attribute light numeric\n")
 	buffer.WriteString("@attribute proximity numeric\n")
+	buffer.WriteString("@attribute gravityX numeric\n")
+	buffer.WriteString("@attribute gravityY numeric\n")
+	buffer.WriteString("@attribute gravityZ numeric\n")
 	buffer.WriteString("@attribute position {" + strings.Join(positions, ",") + "}\n")
 	buffer.WriteString("\n")
 
