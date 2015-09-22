@@ -15,15 +15,39 @@
 			"path": "/spew"
 		},
 		{
+			"importpath": "github.com/fatih/color",
+			"repository": "https://github.com/fatih/color",
+			"revision": "76d423163af754ff6423d2d9be0057fbf03c57c2",
+			"branch": "master"
+		},
+		{
 			"importpath": "github.com/flyingsparx/wekago",
 			"repository": "https://github.com/flyingsparx/wekago",
 			"revision": "42b3339fa349e93722355dfe887815e791d52a2a",
 			"branch": "master"
 		},
 		{
+			"importpath": "github.com/kortschak/ct",
+			"repository": "https://github.com/kortschak/ct",
+			"revision": "7d86dffe6951a82975c0d3fc195cb6b5ecb5c0c6",
+			"branch": "master"
+		},
+		{
+			"importpath": "github.com/mattn/go-isatty",
+			"repository": "https://github.com/mattn/go-isatty",
+			"revision": "7fcbc72f853b92b5720db4a6b8482be612daef24",
+			"branch": "master"
+		},
+		{
 			"importpath": "github.com/pborman/uuid",
 			"repository": "https://github.com/pborman/uuid",
 			"revision": "cccd189d45f7ac3368a0d127efb7f4d08ae0b655",
+			"branch": "master"
+		},
+		{
+			"importpath": "github.com/shiena/ansicolor",
+			"repository": "https://github.com/shiena/ansicolor",
+			"revision": "d445752f6f66f9cd987722f109149f6799cdf1de",
 			"branch": "master"
 		},
 		{

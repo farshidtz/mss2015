@@ -16,14 +16,28 @@ import (
 	"time"
 
 	MQTT "git.eclipse.org/gitroot/paho/org.eclipse.paho.mqtt.golang.git"
+	"github.com/fatih/color"
 )
 
-// MQTT Subscription topic
-const MQTT_TOPIC = "mss2015/sensors/data"
+const (
+	// Confidence above this value is excellent
+	CONFIDENCE_BOUNDARY = 0.9
+	// Confidence below this value is noise
+	NOISE_BOUNDARY = 0.5
+)
 
-//const MQTT_SERVER = "tcp://iot.eclipse.org:1883"
-const MQTT_SERVER = "tcp://192.168.1.42:1883"
-const WEKA_SERVER_PORT = 9100
+// MQTT
+const (
+	MQTT_TOPIC  = "mss2015/sensors/data"
+	MQTT_PUBLIC = "tcp://iot.eclipse.org:1883"
+	MQTT_SERVER = "tcp://localhost:1883"
+)
+
+// Weka Remote Server
+const (
+	WEKA_SERVER_JAR  = "../WekaRemote-3.7.12.jar"
+	WEKA_SERVER_PORT = 9100
+)
 
 // Raw entry
 type Entry struct {
@@ -72,8 +86,8 @@ var conn net.Conn
 func main() {
 	flag.Parse()
 	if len(flag.Args()) < 1 {
-		fmt.Println("Usage: ./predict weka_model_name weka_model_file")
-		fmt.Println("Example: ./predict functions.MultilayerPerceptron trained.model\n")
+		fmt.Println("Usage: ./predict weka_model_file")
+		fmt.Println("Example: ./predict mlp_new.model\n")
 		os.Exit(1)
 	}
 	modelPath = flag.Args()[0]
@@ -148,8 +162,9 @@ func main() {
 			//fmt.Println("Unrecognized sensor:", e.SensorName)
 		}
 		// Check whether a NiceEntry is fullfilled
+		//fmt.Println(niceEntry)
 		if niceEntry.Full() {
-			predict(&wg, niceEntry, time.Now())
+			go predict(&wg, niceEntry, time.Now())
 		} else {
 			fmt.Println("Warming up.")
 		}
@@ -180,7 +195,7 @@ func main() {
 
 // Run Java Weka server
 func runWekaServer(wekaServer chan struct{}, port uint) {
-	cmd := exec.Command("java", "-jar", "socketweka.jar", fmt.Sprint(port))
+	cmd := exec.Command("java", "-jar", WEKA_SERVER_JAR, fmt.Sprint(port))
 	err := cmd.Start()
 	if err != nil {
 		log.Fatal("Weka: " + err.Error())
@@ -222,6 +237,7 @@ func predict(wg *sync.WaitGroup, niceEntry NiceEntry, submissionTime time.Time) 
 	}
 	reply = strings.TrimSpace(reply)
 
+	// Unmarshall from json
 	var pred Prediction
 	err = json.Unmarshal([]byte(reply), &pred)
 	if err != nil {
@@ -229,7 +245,17 @@ func predict(wg *sync.WaitGroup, niceEntry NiceEntry, submissionTime time.Time) 
 		os.Exit(1)
 	}
 
-	fmt.Printf("Prediction: %s\t Confidence: %.3f\t Took: %v \n",
+	// Format the color of output
+	format := color.New(color.FgGreen, color.Bold)
+	if pred.Distribution[pred.Index] >= CONFIDENCE_BOUNDARY {
+		format.EnableColor()
+	} else if pred.Distribution[pred.Index] < NOISE_BOUNDARY {
+		format = color.New(color.FgRed, color.Bold)
+	} else {
+		format.DisableColor()
+	}
+
+	format.Printf("Prediction: %s\t Confidence: %.3f\t Took: %v \n",
 		pred.Label,
 		pred.Distribution[pred.Index],
 		time.Since(submissionTime),
