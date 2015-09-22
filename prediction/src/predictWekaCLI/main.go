@@ -1,19 +1,16 @@
 package main
 
 import (
-	"bufio"
 	"encoding/json"
 	"flag"
 	"fmt"
-	"log"
 	"math"
-	"net"
 	"os"
-	"os/exec"
 	"os/signal"
-	"strings"
 	"sync"
 	"time"
+
+	"github.com/flyingsparx/wekago"
 
 	MQTT "git.eclipse.org/gitroot/paho/org.eclipse.paho.mqtt.golang.git"
 )
@@ -23,9 +20,7 @@ const MQTT_TOPIC = "mss2015/sensors/data"
 
 //const MQTT_SERVER = "tcp://iot.eclipse.org:1883"
 const MQTT_SERVER = "tcp://192.168.1.42:1883"
-const WEKA_SERVER_PORT = 9100
 
-// Raw entry
 type Entry struct {
 	Time       uint64  `json:"t"`
 	V0         float64 `json:"v0"`
@@ -39,13 +34,8 @@ type Entry struct {
 	ErrorRate  int     `json:"e"`
 }
 
-func magnitude(V0, V1, V2 float64) float64 {
-	return math.Sqrt(math.Pow(V0, 2) + math.Pow(V1, 2) + math.Pow(V2, 2))
-}
-
-// Entry containing all features
 type NiceEntry struct {
-	Attr [13]*float64 `json:"attributes"`
+	Attr [13]*float64
 }
 
 // Returns true of all attributes are set
@@ -58,47 +48,22 @@ func (niceEntry *NiceEntry) Full() bool {
 	return true
 }
 
-// Prediction results
-type Prediction struct {
-	Label        string    `json:"label"`
-	Distribution []float64 `json:"dist"`
-	Index        int       `json:"index"`
+func magnitude(V0, V1, V2 float64) float64 {
+	return math.Sqrt(math.Pow(V0, 2) + math.Pow(V1, 2) + math.Pow(V2, 2))
 }
 
 // Global variables
-var modelPath string
-var conn net.Conn
+var modelName, modelPath string
 
 func main() {
 	flag.Parse()
-	if len(flag.Args()) < 1 {
+	if len(flag.Args()) < 2 {
 		fmt.Println("Usage: ./predict weka_model_name weka_model_file")
 		fmt.Println("Example: ./predict functions.MultilayerPerceptron trained.model\n")
 		os.Exit(1)
 	}
-	modelPath = flag.Args()[0]
-
-	// Run Weka server
-	wekaServer := make(chan struct{}, 1)
-	runWekaServer(wekaServer, WEKA_SERVER_PORT)
-
-	// Connect to Weka Server socket
-	var err error
-	conn, err = net.Dial("tcp", "localhost:"+fmt.Sprint(WEKA_SERVER_PORT))
-	if err != nil {
-		fmt.Println(err.Error())
-		os.Exit(1)
-	}
-	fmt.Fprintf(conn, modelPath+"\n")
-	reply, err := bufio.NewReader(conn).ReadString('\n')
-	if err != nil {
-		fmt.Println(err.Error())
-		os.Exit(1)
-	}
-	if strings.Contains(reply, "ERROR") {
-		fmt.Println(reply)
-		os.Exit(1)
-	}
+	modelName = flag.Args()[0]
+	modelPath = flag.Args()[1]
 
 	// Create MQTT Client
 	opts := MQTT.NewClientOptions().AddBroker(MQTT_SERVER)
@@ -149,7 +114,7 @@ func main() {
 		}
 		// Check whether a NiceEntry is fullfilled
 		if niceEntry.Full() {
-			predict(&wg, niceEntry, time.Now())
+			go predict(&wg, niceEntry, time.Now())
 		} else {
 			fmt.Println("Warming up.")
 		}
@@ -173,36 +138,8 @@ func main() {
 		os.Exit(1)
 	}
 	c.Disconnect(250)
-	close(wekaServer)
 	fmt.Println("Done.")
 	os.Exit(0)
-}
-
-// Run Java Weka server
-func runWekaServer(wekaServer chan struct{}, port uint) {
-	cmd := exec.Command("java", "-jar", "socketweka.jar", fmt.Sprint(port))
-	err := cmd.Start()
-	if err != nil {
-		log.Fatal("Weka: " + err.Error())
-	}
-	done := make(chan error, 1)
-
-	go func() {
-		done <- cmd.Wait()
-
-		select {
-		case <-wekaServer:
-			if err := cmd.Process.Kill(); err != nil {
-				log.Fatal("Weka: Failed to kill: ", err)
-			}
-			<-done // allow goroutine to exit
-			fmt.Println("Weka: Process killed")
-		case err := <-done:
-			if err != nil {
-				fmt.Println("Weka: Process done with error: %v", err)
-			}
-		}
-	}()
 }
 
 // Prediction handler
@@ -210,29 +147,54 @@ func predict(wg *sync.WaitGroup, niceEntry NiceEntry, submissionTime time.Time) 
 	wg.Add(1)
 	defer wg.Done()
 
-	jsonObj, err := json.Marshal(&niceEntry)
-	//fmt.Println(string(json))
-	fmt.Fprintf(conn, string(jsonObj)+"\n")
+	// Load the training model
+	model := wekago.NewModel(modelName)
+	model.LoadModel(modelPath)
 
-	// listen for reply
-	reply, err := bufio.NewReader(conn).ReadString('\n')
+	test_feature0 := wekago.NewFeature("linaccX", fmt.Sprint(*niceEntry.Attr[0]), "numeric")
+	test_feature1 := wekago.NewFeature("linaccY", fmt.Sprint(*niceEntry.Attr[1]), "numeric")
+	test_feature2 := wekago.NewFeature("linaccZ", fmt.Sprint(*niceEntry.Attr[2]), "numeric")
+	test_feature3 := wekago.NewFeature("linaccMag", fmt.Sprint(*niceEntry.Attr[3]), "numeric")
+	test_feature4 := wekago.NewFeature("rotationX", fmt.Sprint(*niceEntry.Attr[4]), "numeric")
+	test_feature5 := wekago.NewFeature("rotationY", fmt.Sprint(*niceEntry.Attr[5]), "numeric")
+	test_feature6 := wekago.NewFeature("rotationZ", fmt.Sprint(*niceEntry.Attr[6]), "numeric")
+	test_feature7 := wekago.NewFeature("pressure", fmt.Sprint(*niceEntry.Attr[7]), "numeric")
+	test_feature8 := wekago.NewFeature("light", fmt.Sprint(*niceEntry.Attr[8]), "numeric")
+	test_feature9 := wekago.NewFeature("proximity", fmt.Sprint(*niceEntry.Attr[9]), "numeric")
+	test_feature10 := wekago.NewFeature("gravityX", fmt.Sprint(*niceEntry.Attr[10]), "numeric")
+	test_feature11 := wekago.NewFeature("gravityY", fmt.Sprint(*niceEntry.Attr[11]), "numeric")
+	test_feature12 := wekago.NewFeature("gravityZ", fmt.Sprint(*niceEntry.Attr[12]), "numeric")
+	outcome := wekago.NewFeature("position", "?", "{SidePocket,Idle,InHand,Handbag}")
+
+	test_instance1 := wekago.NewInstance()
+	test_instance1.AddFeature(test_feature0)
+	test_instance1.AddFeature(test_feature1)
+	test_instance1.AddFeature(test_feature2)
+	test_instance1.AddFeature(test_feature3)
+	test_instance1.AddFeature(test_feature4)
+	test_instance1.AddFeature(test_feature5)
+	test_instance1.AddFeature(test_feature6)
+	test_instance1.AddFeature(test_feature7)
+	test_instance1.AddFeature(test_feature8)
+	test_instance1.AddFeature(test_feature9)
+	test_instance1.AddFeature(test_feature10)
+	test_instance1.AddFeature(test_feature11)
+	test_instance1.AddFeature(test_feature12)
+	test_instance1.AddFeature(outcome)
+
+	model.AddTestingInstance(test_instance1)
+
+	err := model.Test()
 	if err != nil {
-		fmt.Println(err.Error())
-		os.Exit(1)
-	}
-	reply = strings.TrimSpace(reply)
-
-	var pred Prediction
-	err = json.Unmarshal([]byte(reply), &pred)
-	if err != nil {
-		fmt.Println(err.Error())
-		os.Exit(1)
+		fmt.Println("[Java]", err.Error())
+		return
 	}
 
-	fmt.Printf("Prediction: %s\t Confidence: %.3f\t Took: %v \n",
-		pred.Label,
-		pred.Distribution[pred.Index],
-		time.Since(submissionTime),
-	)
-
+	for _, prediction := range model.Predictions {
+		fmt.Printf("Prediction: %s\t Prob: %v\t Took: %v \n",
+			prediction.Predicted_value,
+			prediction.Probability,
+			time.Since(submissionTime),
+		)
+	}
 }
