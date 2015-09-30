@@ -17,8 +17,8 @@ import java.util.TimeZone;
 
 /**
  * Service to collect sensor data
- * Returns on logging mode
- * Publishes to MQTT on prediction mode
+     * Logging mode: returns
+     * Prediction mode: publishes to MQTT broker
  */
 
 public class SensorLoggerService extends Service {

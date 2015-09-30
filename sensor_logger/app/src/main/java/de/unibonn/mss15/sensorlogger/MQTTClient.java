@@ -1,9 +1,14 @@
 package de.unibonn.mss15.sensorlogger;
 
+/**
+ * Publishing data to an MQTT Broker
+ * Data is published in json format
+ * Some copyrights goes to https://developer.motorolasolutions.com/docs/DOC-2315
+ */
+
 import android.content.Context;
 import android.util.Log;
 import android.widget.Toast;
-
 
 import org.eclipse.paho.client.mqttv3.IMqttDeliveryToken;
 import org.eclipse.paho.client.mqttv3.MqttCallback;
