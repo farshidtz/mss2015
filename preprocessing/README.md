@@ -1,2 +1,12 @@
-# Example usage:
-./json2arff -query="list2?n=acc&start=2015-08-25T12:14:08.229Z&end=2015-09-25T12:14:08.229Z"
+# Description
+Offline training data preprocessing and conversion:
+- Retrieval from database
+- Noise removal
+- Sensor data fusion
+- Preprocessing
+- Export as ARFF format
+
+# Usage:
+./preproc start_time end_time
+
+Example: ./preproc 2015-09-07T15:35Z 2016-01-01T00:00Z

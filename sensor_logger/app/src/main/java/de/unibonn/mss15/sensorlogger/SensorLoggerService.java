@@ -212,7 +212,7 @@ public class SensorLoggerService extends Service {
         }
 
         // Register sensor listeners
-        //sensorManager.registerListener(sensorListener, sensorManager.getDefaultSensor(Sensor.TYPE_ACCELEROMETER), samplingPeriod, samplingPeriod);
+        sensorManager.registerListener(sensorListener, sensorManager.getDefaultSensor(Sensor.TYPE_ACCELEROMETER), samplingPeriod, samplingPeriod);
         sensorManager.registerListener(sensorListener, sensorManager.getDefaultSensor(Sensor.TYPE_GYROSCOPE), samplingPeriod, samplingPeriod);
         sensorManager.registerListener(sensorListener, sensorManager.getDefaultSensor(Sensor.TYPE_PRESSURE), samplingPeriod, samplingPeriod);
         sensorManager.registerListener(sensorListener, sensorManager.getDefaultSensor(Sensor.TYPE_LIGHT), samplingPeriod, samplingPeriod);

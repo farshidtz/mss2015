@@ -1,4 +1,5 @@
-# README #
+# Description
+RESTful API for storage and retrieval from the ArrangoDB database
 
 Converting to CSV sample cmd:
 
