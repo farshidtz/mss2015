@@ -7,4 +7,4 @@ AUTHORS: Omar Al-Safi, Farshid Tavakolizadeh
 * data_plotter _(Python)_
 * preprocessing _(Go)_
 * prediction _(Go)_
-* weka-remote-prediction _(Java)
+* weka-remote-prediction _(Java)_
